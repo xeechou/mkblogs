@@ -40,8 +40,8 @@ from __future__ import print_function
 from markdown.extensions import Extension
 from markdown.treeprocessors import Treeprocessor
 
-from mkdocs import utils
-from mkdocs.compat import urlparse, urlunparse
+import utils
+from compat import urlparse, urlunparse
 from mkdocs.exceptions import MarkdownNotFound
 
 

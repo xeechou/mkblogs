@@ -72,7 +72,6 @@ DEFAULT_CONFIG = {
     'strict': False,
 }
 
-
 def load_config(filename='mkdocs.yml', options=None):
     options = options or {}
     if 'config' in options:

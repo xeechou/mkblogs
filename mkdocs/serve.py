@@ -3,9 +3,9 @@ from __future__ import print_function
 
 from watchdog import events
 from watchdog.observers.polling import PollingObserver
-from mkdocs.build import build
-from mkdocs.compat import httpserver, socketserver, urlunquote
-from mkdocs.config import load_config
+from build import build
+from compat import httpserver, socketserver, urlunquote
+from config import load_config
 import os
 import posixpath
 import shutil
