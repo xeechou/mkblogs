@@ -19,13 +19,6 @@ from mkdocs.build_pages import *
 
 log = logging.getLogger('mkdocs')
 
-class ScanContext:
-    def __init__(self, config):
-        self.site_navigation = nav.SiteNavigation(config['pages'], config['use_directory_urls'])
-        loader = jinja2.FileSystemLoader(config['theme_dir'])
-        self.env = jinja2.Environment(loader=loader)
-
-        self.global_context = get_global_context(self.site_navigation, config)
 
 BLANK_BLOG_CONTEXT = {
         'page_title': None,
@@ -56,6 +49,38 @@ def get_blog_context(config, title, html, toc, meta):
             'toc' : toc,
             'meta' : meta
             }
+
+
+
+class ScanContext:
+    def __init__(self, config):
+        self.site_navigation = nav.SiteNavigation(config['pages'], config['use_directory_urls'])
+        loader = jinja2.FileSystemLoader(config['theme_dir'])
+        self.env = jinja2.Environment(loader=loader)
+
+        self.global_context = get_global_context(self.site_navigation, config)
+
+        self.bkp_gc = None
+
+    def set_global_context(self, path, config):
+        """
+        use to update site_navigation and global_context, based on site_navigation
+
+        since all files in the same dir all share the have same reference to
+        themes, css, etc. we update here.
+        """
+        self.site_navigation.update_path(path)
+        self.global_context = get_global_context(self.site_navigation, config)
+
+    def bkp_global_context(self):
+        self.bkp_gc = self.global_context
+        self.global_context = None
+    def rst_global_context(self):
+        if not self.bkp_gc:
+            raise
+        self.global_context  = self.bkp_gc
+        self.bkp_gc = None
+
 #XXX: we cannot reuse _build_page function without a huge surgery, it is tiled
 #with a page object, but in our context, we don't know our title in advance.
 #TODO
@@ -70,10 +95,13 @@ def _build_blog(path, config, scan_context):
         input_content = input_content.decode('utf-8')
 
     # Process the markdown text
+
+    #TODO: convert_mardkown generated wrong reference
     html_content, toc, meta = convert_markdown(
         input_content, #without site_navigation
         extensions=config['markdown_extensions'], strict=config['strict']
     )
+
     #TODO:resolve links here
 
     #TODO:render pages, TODO: get_blog_context, blank_blog_context
@@ -98,6 +126,12 @@ def recursive_scan(this_path, config, n_new, cata_list, scan_context, genindex=T
 
     also, we record the newest N blogs
     """
+    #XXX: backup
+    scan_context.bkp_global_context()
+
+    #buggy!!!
+    scan_context.set_global_context(this_path, config)
+
     global omit_path    #TODO: fix this
     newest_paths = []
     local_paths = {}
@@ -116,7 +150,6 @@ def recursive_scan(this_path, config, n_new, cata_list, scan_context, genindex=T
         if abs_path in omit_path:
             continue
 
-        #XXX: @abs_path is not abs path at all, it starts at 'docs'
         if os.path.isfile(abs_path):
             addtime = os.path.getatime(abs_path)
             local_paths[f] = addtime
@@ -141,6 +174,8 @@ def recursive_scan(this_path, config, n_new, cata_list, scan_context, genindex=T
         #XXX, build page for index.md
         cata_list.append(this_path) 
 
+    #XXX: restore context
+    scan_context.rst_global_context()
     return newest_path
 
 
@@ -192,6 +227,8 @@ from lxml import html
 if __name__ == "__main__":
     config = Config.load_config('tests/test_conf.yml')
     scan_context = Build.ScanContext(config)
+    scan_context.set_global_context(nav.Page(None,'test/test.md','test/test.md',\
+        nav.URLContext), config)
     #page link problem need to be resolved
     content = Build._build_blog('tests/test.md', config, scan_context)
-    print (content)
+    #print (content)

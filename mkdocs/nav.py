@@ -41,6 +41,14 @@ class SiteNavigation(object):
     def __iter__(self):
         return iter(self.nav_items)
 
+    def update_path(self, page):
+        """ 
+        isolate this out so someone can manually update his site_naviation
+        """
+        page.set_active()
+        self.url_context.set_current_url(page.abs_url)
+        self.file_context.set_current_path(page.input_path)
+
     def walk_pages(self):
         """
         Returns each page in the site in turn.
@@ -50,16 +58,12 @@ class SiteNavigation(object):
         highlight the currently active page and/or header item.
         """
         page = self.homepage
-        page.set_active()
-        self.url_context.set_current_url(page.abs_url)
-        self.file_context.set_current_path(page.input_path)
+        self.update_path(page)
         yield page
         while page.next_page:
             page.set_active(False)
             page = page.next_page
-            page.set_active()
-            self.url_context.set_current_url(page.abs_url)
-            self.file_context.set_current_path(page.input_path)
+            self.update_path(page)
             yield page
         page.set_active(False)
 

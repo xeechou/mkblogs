@@ -81,8 +81,9 @@ def get_global_context(nav, config):
         'repo_name': config['repo_name'],
         'nav': nav,
         'base_url': nav.url_context.make_relative('/'), #base_url is a
-                                                #relative_url from page to themes
+                                                        #relative_url from page to themes
         'homepage_url': nav.homepage.url,
+        #print(homepage_url)
 
         'extra_css': extra_css,
         'extra_javascript': extra_javascript,
@@ -122,6 +123,7 @@ def get_page_context(page, content, toc, meta, config):
         canonical_url = urljoin(base, page.abs_url.lstrip('/'))
     else:
         canonical_url = None
+    
 
     return {
         'page_title': page_title,
