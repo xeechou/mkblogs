@@ -4,17 +4,18 @@ from __future__ import print_function
 from datetime import datetime
 
 from jinja2.exceptions import TemplateNotFound
-#from .. import mkdocs
-import __init__ as mkdocs
-import nav, toc, utils
-from compat import urljoin, PY2
+import mkdocs
+
+from mkdocs import nav, toc, utils
+from mkdocs.compat import urljoin, PY2
+from mkdocs.relative_path_ext import RelativePathExtension
 import jinja2
 import json
 import markdown
 import os
 import logging
 
-from build_pages import *
+from mkdocs.build_pages import *
 
 log = logging.getLogger('mkdocs')
 
@@ -76,8 +77,9 @@ def _build_blog(path, config, scan_context):
     #TODO:resolve links here
 
     #TODO:render pages, TODO: get_blog_context, blank_blog_context
-    page_context = scan_context.global_context.update(BLANK_BLOG_CONTEXT)
-    page_context.update(get_blog_context(config, html_content, toc, meta))
+    context = scan_context.global_context
+    context.update(BLANK_BLOG_CONTEXT)
+    context.update(get_blog_context(config, None, html_content, toc, meta))
 
     # Allow 'template:' override in md source files.
     if 'template' in meta:
@@ -190,4 +192,6 @@ from lxml import html
 if __name__ == "__main__":
     config = Config.load_config('tests/test_conf.yml')
     scan_context = Build.ScanContext(config)
+    #page link problem need to be resolved
     content = Build._build_blog('tests/test.md', config, scan_context)
+    print (content)

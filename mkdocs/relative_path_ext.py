@@ -41,7 +41,7 @@ from markdown.extensions import Extension
 from markdown.treeprocessors import Treeprocessor
 
 import utils
-from compat import urlparse, urlunparse
+from mkdocs.compat import urlparse, urlunparse
 from mkdocs.exceptions import MarkdownNotFound
 
 

@@ -14,7 +14,7 @@ The steps we take to generate a table of contents are:
 * Parse table of contents HTML into the underlying data structure.
 """
 
-from compat import HTMLParser
+from mkdocs.compat import HTMLParser
 
 
 class TableOfContents(object):

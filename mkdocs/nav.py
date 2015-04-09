@@ -6,7 +6,7 @@ Deals with generating the site-wide navigation.
 This consists of building a set of interlinked page and header objects.
 """
 
-import utils, exceptions
+from mkdocs import utils, exceptions
 import posixpath
 import os
 

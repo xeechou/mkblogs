@@ -2,12 +2,12 @@
 from __future__ import print_function
 
 from datetime import datetime
-import __init__ as mkdocs
 from jinja2.exceptions import TemplateNotFound
-import __init__ as mkdocs
-import nav, toc, utils
-from compat import urljoin, PY2
-from relative_path_ext import RelativePathExtension
+
+import mkdocs
+from mkdocs import nav, toc, utils
+from mkdocs.compat import urljoin, PY2
+from mkdocs.relative_path_ext import RelativePathExtension
 import jinja2
 import json
 import markdown
@@ -80,7 +80,8 @@ def get_global_context(nav, config):
         'repo_url': config['repo_url'],
         'repo_name': config['repo_name'],
         'nav': nav,
-        'base_url': nav.url_context.make_relative('/'),
+        'base_url': nav.url_context.make_relative('/'), #base_url is a
+                                                #relative_url from page to themes
         'homepage_url': nav.homepage.url,
 
         'extra_css': extra_css,
