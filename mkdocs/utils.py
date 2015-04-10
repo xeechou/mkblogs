@@ -107,6 +107,25 @@ def get_url_path(path, use_directory_urls=True):
         return url[:-len('index.html')]
     return url
 
+def get_blog_html_path(path):
+    path = os.path.splitext(path)[0]
+    return path + '.html'
+
+def get_blog_url_path(path):
+    """
+    Map a source file path to an html path
+
+    we don't create directory for each source file since it is totally
+    unecessary for blogs.
+
+    Paths like 'index.md' will be converted to '/'
+    Paths like 'about.md' will be converted to '/about.html'
+    Paths like 'api-guide/core.md' will be converted to '/api-guide/core.html'
+    """
+    path = get_blog_html_path(path)
+    url = '/' + path.replace(os.path.sep, '/')
+
+    return url
 
 def is_homepage(path):
     return os.path.splitext(path)[0] == 'index'

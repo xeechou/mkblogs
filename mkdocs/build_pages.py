@@ -13,6 +13,7 @@ import json
 import markdown
 import os
 import logging
+import posixpath
 
 log = logging.getLogger('mkdocs')
 
@@ -65,6 +66,9 @@ def get_global_context(nav, config):
     extra_javascript = utils.create_media_urls(nav=nav, url_list=config['extra_javascript'])
 
     extra_css = utils.create_media_urls(nav=nav, url_list=config['extra_css'])
+
+    #print(nav.url_context.base_path)
+    #print (posixpath.relpath('/', start=nav.url_context.base_path))
 
     return {
         'site_name': site_name,

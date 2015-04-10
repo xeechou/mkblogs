@@ -81,12 +81,13 @@ class ScanContext:
         self.global_context  = self.bkp_gc
         self.bkp_gc = None
 
-#XXX: we cannot reuse _build_page function without a huge surgery, it is tiled
-#with a page object, but in our context, we don't know our title in advance.
-#TODO
-def _build_blog(path, config, scan_context):
+def _build_blog(input_path, output_path, config, scan_context):
+    """
+    convert a blog from @input_path to @output_path html, this func differ from
+    _build_page where it use a page struct.
+    """
     try:
-        input_content = open(path, 'r').read()
+        input_content = open(input_path, 'r').read()
     except IOError:
         log.error('file not found: %s', input_path)
         return
@@ -96,13 +97,13 @@ def _build_blog(path, config, scan_context):
 
     # Process the markdown text
 
-    #TODO: convert_mardkown generated wrong reference
+    #TODO: we need a different convert_markdown coz:
+    #1. convert_markdown gives wrong links.
+    #2. we need a title here.
     html_content, toc, meta = convert_markdown(
         input_content, #without site_navigation
         extensions=config['markdown_extensions'], strict=config['strict']
     )
-
-    #TODO:resolve links here
 
     #TODO:render pages, TODO: get_blog_context, blank_blog_context
     context = scan_context.global_context
@@ -119,47 +120,56 @@ def _build_blog(path, config, scan_context):
     return template.render(context)
 
 
-def recursive_scan(this_path, config, n_new, cata_list, scan_context, genindex=True):
+def recursive_scan(this_dir, config, n_new, cata_list, scan_context, genindex=True):
     """
-    Every directory is a catalog, if we find one, we will append dir name to
-    cata_list, and build a index.html for it.
-
+    @this_dir starts inside docs, so you will never see 'docs/' in it. Inside
+    function, we use true_path to represent the relpath from '/' to now
+    
     also, we record the newest N blogs
     """
+
     #XXX: backup
     scan_context.bkp_global_context()
-
-    #buggy!!!
-    scan_context.set_global_context(this_path, config)
+    """
+    we use one single global_context to represent all files in the same dir
+    """
+    dummpy_md = os.path.join(this_dir, 'index.md')
+    dummpy_page = nav.Page(None, url=utils.get_blog_url_path(dummpy_md),
+            path=dummpy_md, nav.URLContext())
+    scan_context.set_global_context(dummpy_page, config)
 
     global omit_path    #TODO: fix this
     newest_paths = []
     local_paths = {}
-    abs_paths = {}
+    
+    docs_dir = os.path.join(config['docs_dir'], this_dir)
+    htmls_dir = os.path.join(config['site_dir'], this_dir)
 
-    paths = os.listdir(this_path)
-    ignored_files = read_ignore(os.path.join(this_path, dot_ignore))
+    paths = os.listdir(docs_dir)
+    ignored_files = read_ignore(os.path.join(this_dir, dot_ignore))
     for f in paths:
+        doc_path  = os.path.join(docs_dir,  f)
+        html_path = utils.get_blog_html_path(os.path.join(htmls_dir, f))
+
         #locally ignored
         if f == dot_ignore:
             continue
         if f in ignored_files:
             continue
         #globally ignored,
-        abs_path = os.path.join(this_path, f)
-        if abs_path in omit_path:
+        if doc_path in omit_path:
             continue
 
-        if os.path.isfile(abs_path):
-            addtime = os.path.getatime(abs_path)
+        if os.path.isfile(doc_path):
+            addtime = os.path.getatime(doc_path)
             local_paths[f] = addtime
-            build_
-            newest_paths.append((abs_path, addtime))
+            newest_paths.append((doc_path, addtime))
 #XXX: build every page
-            _build_blog(abs_path, config, scan_context)   
+            _build_blog(doc_path, html_path, config, scan_context)   
 
-        elif os.path.isdir(abs_path):
-            sub_newest_paths = recursive_scan(abs_path)
+        elif os.path.isdir(doc_path)
+            sub_newest_paths = recursive_scan(doc_path, config, n_new,
+                    cata_list, scan_context)
 #XXX: update top N pages
             add_top_n(newest_paths, sub_newest_paths)
         else:
@@ -167,12 +177,14 @@ def recursive_scan(this_path, config, n_new, cata_list, scan_context, genindex=T
 
         #now, we should generate a index.md for this dir
     if genindex == True:
-        index_md = open(os.path.json(parent_path, 'index.md'), 'w')
+        index_path = os.path.join(docs_path, 'index.md')
+        index_md = open(index_path, 'w')
         write_indexmd(index_md, local_paths)
         index_md.close()
+        _build_blog(index_path, utils.get_blog_html_path(index_path), config,
+                scan_context)
 #XXX: add to cata_list
-        #XXX, build page for index.md
-        cata_list.append(this_path) 
+        cata_list.append(this_dir)
 
     #XXX: restore context
     scan_context.rst_global_context()
@@ -226,9 +238,14 @@ from lxml import html
 
 if __name__ == "__main__":
     config = Config.load_config('tests/test_conf.yml')
+    print(config['pages'])
     scan_context = Build.ScanContext(config)
-    scan_context.set_global_context(nav.Page(None,'test/test.md','test/test.md',\
-        nav.URLContext), config)
+    #so basically you need add a '/' to urls, 
+    scan_context.set_global_context(nav.Page(None,url='/test/test.md', path='test/test.md',\
+        url_context=nav.URLContext), config)
     #page link problem need to be resolved
+    # coz os.path.dirname('test/test.md') = test,
+    # posixpath.relpath('test', '/') = '../../../../..'
+    # you get wrong reference
     content = Build._build_blog('tests/test.md', config, scan_context)
-    #print (content)
+    print(content)
