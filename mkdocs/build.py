@@ -14,10 +14,12 @@ import json
 import markdown
 import os
 import logging
+import operator
 
 from mkdocs.build_pages import *
 
 log = logging.getLogger('mkdocs')
+omit_path = ['index.md', 'img']
 
 
 BLANK_BLOG_CONTEXT = {
@@ -53,33 +55,23 @@ def get_blog_context(config, title, html, toc, meta):
 
 
 class ScanContext:
-    def __init__(self, config):
+    def __init__(self, config, dir_path):
+        """same for all blogs"""
         self.site_navigation = nav.SiteNavigation(config['pages'], config['use_directory_urls'])
         loader = jinja2.FileSystemLoader(config['theme_dir'])
         self.env = jinja2.Environment(loader=loader)
-
-        self.global_context = get_global_context(self.site_navigation, config)
-
-        self.bkp_gc = None
-
-    def set_global_context(self, path, config):
+        """end: same for all blogs"""
         """
-        use to update site_navigation and global_context, based on site_navigation
-
         since all files in the same dir all share the have same reference to
-        themes, css, etc. we update here.
+        media files, we just use a dummpy path to handle it.
         """
-        self.site_navigation.update_path(path)
+        dummpy = os.path.join(dir_path, 'dummpy')
+        dummpy_page = nav.Page(None, url=utils.get_blog_url_path(dummpy),
+                path=dummpy, url_context=nav.URLContext())
+
+        site_navigation.update_path(dummpy_page)
         self.global_context = get_global_context(self.site_navigation, config)
 
-    def bkp_global_context(self):
-        self.bkp_gc = self.global_context
-        self.global_context = None
-    def rst_global_context(self):
-        if not self.bkp_gc:
-            raise
-        self.global_context  = self.bkp_gc
-        self.bkp_gc = None
 
 def _build_blog(input_path, output_path, config, scan_context):
     """
@@ -119,34 +111,51 @@ def _build_blog(input_path, output_path, config, scan_context):
     # Render the template.
     return template.render(context)
 
+def read_ignore(ignored_file):
+    ignored_list = []
+    if not os.path.isfile(ignored_file):
+        pass
+    else:
+        with open(ignored_file) as f:
+            for line in f:
+                ignored_files.append(line)
+            f.close()
+    return ignored_list
 
-def recursive_scan(this_dir, config, n_new, cata_list, scan_context, genindex=True):
+def add_top_n(newest_paths, to_add, n):
+    to_sort = newest_paths.extend(to_add)
+    if not to_sort:
+        return []
+    return sorted(to_sort, key=operator.itemgetter(1), \
+            reverse=True)[:n]
+
+def write_indexmd(fp, files_path):
+    #TODO
+    pass
+
+def recursive_scan(this_dir, config, n_new, cata_list, genindex=True):
     """
     @this_dir starts inside docs, so you will never see 'docs/' in it. Inside
     function, we use true_path to represent the relpath from '/' to now
     
     also, we record the newest N blogs
     """
-
-    #XXX: backup
-    scan_context.bkp_global_context()
     """
     we use one single global_context to represent all files in the same dir
     """
-    dummpy_md = os.path.join(this_dir, 'index.md')
-    dummpy_page = nav.Page(None, url=utils.get_blog_url_path(dummpy_md),
-            path=dummpy_md, nav.URLContext())
-    scan_context.set_global_context(dummpy_page, config)
+    scan_context = ScanContext(config, this_dir)
+    global_context = scan_context.get_global_context(dummpy_page, config)
 
-    global omit_path    #TODO: fix this
+    global omit_path   #TODO: fix this
     newest_paths = []
     local_paths = {}
+    dot_ignore = '.ignore'
     
     docs_dir = os.path.join(config['docs_dir'], this_dir)
     htmls_dir = os.path.join(config['site_dir'], this_dir)
 
     paths = os.listdir(docs_dir)
-    ignored_files = read_ignore(os.path.join(this_dir, dot_ignore))
+    ignored_files = read_ignore(os.path.join(docs_dir, dot_ignore))
     for f in paths:
         doc_path  = os.path.join(docs_dir,  f)
         html_path = utils.get_blog_html_path(os.path.join(htmls_dir, f))
@@ -160,24 +169,24 @@ def recursive_scan(this_dir, config, n_new, cata_list, scan_context, genindex=Tr
         if doc_path in omit_path:
             continue
 
-        if os.path.isfile(doc_path):
+        if utils.is_markdown_file(doc_path):
             addtime = os.path.getatime(doc_path)
             local_paths[f] = addtime
             newest_paths.append((doc_path, addtime))
 #XXX: build every page
             _build_blog(doc_path, html_path, config, scan_context)   
 
-        elif os.path.isdir(doc_path)
-            sub_newest_paths = recursive_scan(doc_path, config, n_new,
+        elif os.path.isdir(doc_path):
+            sub_newest_paths = recursive_scan(os.path.join(this_dir, f), config, n_new,
                     cata_list, scan_context)
 #XXX: update top N pages
-            add_top_n(newest_paths, sub_newest_paths)
+            add_top_n(newest_paths, sub_newest_paths, n_new)
         else:
             continue
 
         #now, we should generate a index.md for this dir
     if genindex == True:
-        index_path = os.path.join(docs_path, 'index.md')
+        index_path = os.path.join(docs_dir, 'index.md')
         index_md = open(index_path, 'w')
         write_indexmd(index_md, local_paths)
         index_md.close()
@@ -187,8 +196,8 @@ def recursive_scan(this_dir, config, n_new, cata_list, scan_context, genindex=Tr
         cata_list.append(this_dir)
 
     #XXX: restore context
-    scan_context.rst_global_context()
-    return newest_path
+    return newest_paths
+
 
 
 def build_blogs(config):
@@ -198,8 +207,9 @@ def build_blogs(config):
     scan_context = ScanContext(config)
     
     cata_list = []
-    n_newest_path = newest_blogs = recursive_scan(build_path, config, 
+    n_newest_path = newest_blogs = recursive_scan('.', config, 
             n_pages, cata_list,genindex=False)
+    #write index.md and cata.md
 
 def build(config, live_server=False, dump_json=False, clean_site_dir=False):
     """
@@ -241,11 +251,11 @@ if __name__ == "__main__":
     print(config['pages'])
     scan_context = Build.ScanContext(config)
     #so basically you need add a '/' to urls, 
-    scan_context.set_global_context(nav.Page(None,url='/test/test.md', path='test/test.md',\
-        url_context=nav.URLContext), config)
-    #page link problem need to be resolved
-    # coz os.path.dirname('test/test.md') = test,
-    # posixpath.relpath('test', '/') = '../../../../..'
-    # you get wrong reference
-    content = Build._build_blog('tests/test.md', config, scan_context)
-    print(content)
+
+    cata_list = []
+    news_path = recursive_scan('.', config, 5, cata_list, scan_context, genindex=False)
+
+    #scan_context.set_global_context(nav.Page(None,url='/test/test.md', path='test/test.md',\
+    #    url_context=nav.URLContext), config)
+    #content = Build._build_blog('tests/test.md', config, scan_context)
+    #print(content)
