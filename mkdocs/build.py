@@ -69,7 +69,7 @@ class ScanContext:
         dummpy_page = nav.Page(None, url=utils.get_blog_url_path(dummpy),
                 path=dummpy, url_context=nav.URLContext())
 
-        site_navigation.update_path(dummpy_page)
+        self.site_navigation.update_path(dummpy_page)
         self.global_context = get_global_context(self.site_navigation, config)
 
 
@@ -123,10 +123,10 @@ def read_ignore(ignored_file):
     return ignored_list
 
 def add_top_n(newest_paths, to_add, n):
-    to_sort = newest_paths.extend(to_add)
-    if not to_sort:
+    newest_paths.extend(to_add)
+    if not newest_paths:
         return []
-    return sorted(to_sort, key=operator.itemgetter(1), \
+    return sorted(newest_paths, key=operator.itemgetter(1), \
             reverse=True)[:n]
 
 def write_indexmd(fp, files_path):
@@ -144,7 +144,6 @@ def recursive_scan(this_dir, config, n_new, cata_list, genindex=True):
     we use one single global_context to represent all files in the same dir
     """
     scan_context = ScanContext(config, this_dir)
-    global_context = scan_context.get_global_context(dummpy_page, config)
 
     global omit_path   #TODO: fix this
     newest_paths = []
@@ -180,7 +179,7 @@ def recursive_scan(this_dir, config, n_new, cata_list, genindex=True):
             sub_newest_paths = recursive_scan(os.path.join(this_dir, f), config, n_new,
                     cata_list, scan_context)
 #XXX: update top N pages
-            add_top_n(newest_paths, sub_newest_paths, n_new)
+            newest_paths = add_top_n(newest_paths, sub_newest_paths, n_new)
         else:
             continue
 
@@ -196,7 +195,7 @@ def recursive_scan(this_dir, config, n_new, cata_list, genindex=True):
         cata_list.append(this_dir)
 
     #XXX: restore context
-    return newest_paths
+    return add_top_n(newest_paths, [], n_new)
 
 
 
@@ -249,11 +248,11 @@ from lxml import html
 if __name__ == "__main__":
     config = Config.load_config('tests/test_conf.yml')
     print(config['pages'])
-    scan_context = Build.ScanContext(config)
     #so basically you need add a '/' to urls, 
 
     cata_list = []
-    news_path = recursive_scan('.', config, 5, cata_list, scan_context, genindex=False)
+    news_path = recursive_scan('.', config, 5, cata_list, genindex=False)
+    print(len(news_path))
 
     #scan_context.set_global_context(nav.Page(None,url='/test/test.md', path='test/test.md',\
     #    url_context=nav.URLContext), config)
