@@ -164,8 +164,7 @@ def recursive_scan(this_dir, config, n_new, cata_list, genindex=True):
             continue
         if f in ignored_files:
             continue
-        #globally ignored,
-        if doc_path in omit_path:
+        if f in omit_path:
             continue
 
         if utils.is_markdown_file(doc_path):
@@ -184,7 +183,8 @@ def recursive_scan(this_dir, config, n_new, cata_list, genindex=True):
             continue
 
         #now, we should generate a index.md for this dir
-    if genindex == True:
+        #if this dir contains no markdowns, we don't generate index for it.
+    if genindex == True and len(newest_paths) > 0:
         index_path = os.path.join(docs_dir, 'index.md')
         index_md = open(index_path, 'w')
         write_indexmd(index_md, local_paths)
