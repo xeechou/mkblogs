@@ -1,0 +1,20 @@
+1. This gonna taking time, we need merge build_pages with build, coz now they
+are same.
+
+We don't distinguish build_pages with build_blogs anymore.
+Pages don't have private directory anymore. After we are sure all the pages
+exist, we just recursively build it.
+
+Now this is how build() works:
+
+1. recursive scan the directory and tries to build all the pages.
+2. Just write htmls right in current directories.
+3. Now we build pages, because index.md and catalist.md are also in pages, so we
+can compile them along with others.
+
+3. Afterwards, copy all the media files to site_directory.
+
+
+
+TODO: 
+1. modify config, add 'docs_dir' as prefix to pages

@@ -52,8 +52,6 @@ def get_blog_context(config, title, html, toc, meta):
             'meta' : meta
             }
 
-
-
 class ScanContext:
     def __init__(self, config, dir_path):
         """same for all blogs"""
@@ -73,7 +71,7 @@ class ScanContext:
         self.global_context = get_global_context(self.site_navigation, config)
 
 
-def _build_blog(input_path, output_path, config, scan_context):
+def _build_blog(input_path, config, scan_context):
     """
     convert a blog from @input_path to @output_path html, this func differ from
     _build_page where it use a page struct.
@@ -97,9 +95,8 @@ def _build_blog(input_path, output_path, config, scan_context):
         extensions=config['markdown_extensions'], strict=config['strict']
     )
 
-    #TODO:render pages, TODO: get_blog_context, blank_blog_context
     context = scan_context.global_context
-    context.update(BLANK_BLOG_CONTEXT)
+    context.update(BLANK_BLOG_CONTEXT)     #title
     context.update(get_blog_context(config, None, html_content, toc, meta))
 
     # Allow 'template:' override in md source files.
@@ -110,11 +107,12 @@ def _build_blog(input_path, output_path, config, scan_context):
 
     # Render the template.
     final_content =  template.render(context)
+    #just write right in the directory
+    output_path = os.path.splitext(input_path)[0] + '.html'
     with open(output_path, 'w') as f:
         f.write(final_content.encode('utf8'))
         f.close()
-    # Return its title in the future
-    return None
+    return None #return title
 
 def read_ignore(ignored_file):
     ignored_list = []
@@ -134,36 +132,26 @@ def add_top_n(newest_paths, to_add, n):
     return sorted(newest_paths, key=operator.itemgetter(1), \
             reverse=True)[:n]
 
-def write_indexmd(fp, files_path):
-    #TODO
-    pass
-
 def recursive_scan(this_dir, config, n_new, cata_list, genindex=True):
     """
     @this_dir starts inside docs, so you will never see 'docs/' in it. Inside
     function, we use true_path to represent the relpath from '/' to now
     
     also, we record the newest N blogs
-    """
-    """
     we use one single global_context to represent all files in the same dir
     """
     scan_context = ScanContext(config, this_dir)
 
-    global omit_path   #TODO: fix this
+    global omit_path
     newest_paths = []
     local_paths = []
     dot_ignore = '.ignore'
     #globally ignore pages
     
-    docs_dir = os.path.join(config['docs_dir'], this_dir)
-    htmls_dir = os.path.join(config['site_dir'], this_dir)
-
-    paths = os.listdir(docs_dir)
-    ignored_files = read_ignore(os.path.join(docs_dir, dot_ignore))
+    paths = os.listdir(this_dir)
+    ignored_files = read_ignore(os.path.join(this_dir, dot_ignore))
     for f in paths:
-        doc_path  = os.path.join(docs_dir,  f)
-        html_path = utils.get_blog_html_path(os.path.join(htmls_dir, f))
+        doc_path  = os.path.join(this_dir,  f)
 
         #locally ignored
         if f == dot_ignore:
@@ -173,10 +161,12 @@ def recursive_scan(this_dir, config, n_new, cata_list, genindex=True):
         if f in omit_path:
             continue
         #globally ingored
+        if is_page(doc_path, config['pages']):
+            continue
 
-        if utils.is_markdown_file(doc_path):
-#XXX: build every page
-            title = _build_blog(doc_path, html_path, config, scan_context)   
+        if utils.is_markdown_file(doc_path) and is_newmd(doc_path):
+#XXX: build page when it is new
+            title = _build_blog(doc_path, config, scan_context)   
             addtime = os.path.getatime(doc_path)
 
             local_paths.append((title, f, addtime))
@@ -192,17 +182,34 @@ def recursive_scan(this_dir, config, n_new, cata_list, genindex=True):
 
         #now, we should generate a index.md for this dir
         #if this dir contains no markdowns, we don't generate index for it.
+
     if genindex == True and len(newest_paths) > 0:
-        index_path = os.path.join(docs_dir, 'index.md')
+        index_path = os.path.join(this_dir, 'index.md')
         html.write_index(index_md, local_paths)
-        _build_blog(index_path, utils.get_blog_html_path(index_path), config,
-                scan_context)
+        _build_blog(index_path, config, scan_context)
 #XXX: add to cata_list
         cata_list.append(this_dir)
 
     #XXX: restore context
     return add_top_n(newest_paths, [], n_new)
 
+
+def is_newmd(doc_path):
+    """
+    test if @doc_path worth compiling
+    @doc_path has to exists
+    """
+    html_path  = os.path.splitext(doc_path)[0] + '.html'
+
+    if not os.path.exists(html_path):
+        return True
+    doc_mtime  = os.path.getmtime(doc_path)
+    html_mtime = os.path.getmtime(html_path)
+    return True if doc_mtime > html_mtime else False
+
+
+def is_page(doc_path, pages):
+    return True if doc_path in [i[0] for i in pages] else False
 
 
 def build_blogs(config):
@@ -216,7 +223,7 @@ def build_blogs(config):
             n_pages, cata_list,genindex=False)
     #write index.md and cata.md
 
-def build(config, live_server=False, dump_json=False, clean_site_dir=False):
+def build(config, live_server=False, clean_site_dir=False):
     """
     Perform a full site build.
     """
@@ -228,11 +235,15 @@ def build(config, live_server=False, dump_json=False, clean_site_dir=False):
         if not clean_site_dir and site_directory_contains_stale_files(config['site_dir']):
             print("Directory %s contains stale files. Use --clean to remove them." % config['site_dir'])
 
-    #we ignore dump json
-    if dump_json:
-        build_pages(config, dump_json=True)
-        return
 
+    log.debug("Building markdown pages.")
+
+    #switch the build sequence, so that we can build catalist and index along
+    #with pages
+    build_blogs(config)
+    build_pages(config)
+
+    # NOW move compiled blogs along with themes to site dir
     # Reversed as we want to take the media files from the builtin theme
     # and then from the custom theme_dir so the custom versions take take
     # precedence.
@@ -243,9 +254,7 @@ def build(config, live_server=False, dump_json=False, clean_site_dir=False):
     log.debug("Copying static assets from the docs dir.")
     utils.copy_media_files(config['docs_dir'], config['site_dir'])
 
-    log.debug("Building markdown pages.")
-    build_pages(config)
-    build_blogs(config)
+
 
 import config as Config
 import build as Build
@@ -257,7 +266,7 @@ if __name__ == "__main__":
     #so basically you need add a '/' to urls, 
 
     cata_list = []
-    news_path = recursive_scan('.', config, 5, cata_list, genindex=False)
+    news_path = recursive_scan('docs', config, 5, cata_list, genindex=False)
     print(len(news_path))
 
     #scan_context.set_global_context(nav.Page(None,url='/test/test.md', path='test/test.md',\

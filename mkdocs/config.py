@@ -70,6 +70,11 @@ DEFAULT_CONFIG = {
     # enabling strict mode causes MkDocs to stop the build when a problem is
     # encountered rather than display an error.
     'strict': False,
+
+    #insert self defined pages after default pages, test Based on title
+    #and another thing to be noticed, here we didn't know anything about
+    #'docs_dir', so we decide to ignore it first, and append them later
+    'default pages' : [('index.md', 'Home'), ('catalist.md', 'Catalog')]
 }
 
 def load_config(filename='mkdocs.yml', options=None):
