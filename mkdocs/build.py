@@ -109,7 +109,12 @@ def _build_blog(input_path, output_path, config, scan_context):
         template = scan_context.env.get_template('base.html')
 
     # Render the template.
-    return template.render(context)
+    final_content =  template.render(context)
+    with open(output_path, 'w') as f:
+        f.write(final_content.encode('utf8'))
+        f.close()
+    # Return its title in the future
+    return None
 
 def read_ignore(ignored_file):
     ignored_list = []
@@ -147,8 +152,9 @@ def recursive_scan(this_dir, config, n_new, cata_list, genindex=True):
 
     global omit_path   #TODO: fix this
     newest_paths = []
-    local_paths = {}
+    local_paths = []
     dot_ignore = '.ignore'
+    #globally ignore pages
     
     docs_dir = os.path.join(config['docs_dir'], this_dir)
     htmls_dir = os.path.join(config['site_dir'], this_dir)
@@ -166,13 +172,15 @@ def recursive_scan(this_dir, config, n_new, cata_list, genindex=True):
             continue
         if f in omit_path:
             continue
+        #globally ingored
 
         if utils.is_markdown_file(doc_path):
-            addtime = os.path.getatime(doc_path)
-            local_paths[f] = addtime
-            newest_paths.append((doc_path, addtime))
 #XXX: build every page
-            _build_blog(doc_path, html_path, config, scan_context)   
+            title = _build_blog(doc_path, html_path, config, scan_context)   
+            addtime = os.path.getatime(doc_path)
+
+            local_paths.append((title, f, addtime))
+            newest_paths.append((doc_path, addtime))
 
         elif os.path.isdir(doc_path):
             sub_newest_paths = recursive_scan(os.path.join(this_dir, f), config, n_new,
@@ -186,9 +194,7 @@ def recursive_scan(this_dir, config, n_new, cata_list, genindex=True):
         #if this dir contains no markdowns, we don't generate index for it.
     if genindex == True and len(newest_paths) > 0:
         index_path = os.path.join(docs_dir, 'index.md')
-        index_md = open(index_path, 'w')
-        write_indexmd(index_md, local_paths)
-        index_md.close()
+        html.write_index(index_md, local_paths)
         _build_blog(index_path, utils.get_blog_html_path(index_path), config,
                 scan_context)
 #XXX: add to cata_list
