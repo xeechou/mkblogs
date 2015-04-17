@@ -5,18 +5,18 @@ import os
 config_text = 'site_name: My Docs\n'
 index_text = """# Welcome to MkDocs
 
-For full documentation visit [mkdocs.org](http://mkdocs.org).
+For full documentation visit [mkblogs.org](http://mkblogs.org).
 
 ## Commands
 
-* `mkdocs new [dir-name]` - Create a new project.
-* `mkdocs serve` - Start the live-reloading docs server.
-* `mkdocs build` - Build the documentation site.
-* `mkdocs help` - Print this help message.
+* `mkblogs new [dir-name]` - Create a new project.
+* `mkblogs serve` - Start the live-reloading docs server.
+* `mkblogs build` - Build the documentation site.
+* `mkblogs help` - Print this help message.
 
 ## Project layout
 
-    mkdocs.yml    # The configuration file.
+    mkblogs.yml    # The configuration file.
     docs/
         index.md  # The documentation homepage.
         ...       # Other markdown pages, images and other files.
@@ -25,13 +25,13 @@ For full documentation visit [mkdocs.org](http://mkdocs.org).
 
 def new(args, options):
     if len(args) != 1:
-        print("Usage 'mkdocs new [directory-name]'")
+        print("Usage 'mkblogs new [directory-name]'")
         return
 
     output_dir = args[0]
 
     docs_dir = os.path.join(output_dir, 'docs')
-    config_path = os.path.join(output_dir, 'mkdocs.yml')
+    config_path = os.path.join(output_dir, 'mkblogs.yml')
     index_path = os.path.join(docs_dir, 'index.md')
 
     if os.path.exists(config_path):

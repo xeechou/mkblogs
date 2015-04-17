@@ -1,5 +1,5 @@
 import os, operator
-from mkdocs import utils, nav
+from mkblogs import utils, nav
 
 def get_located_path(file_path):
     """
@@ -32,7 +32,7 @@ def write_index(path, indices, title=None):
 def write_catalog(path, catalist):
     """
     write the top catalog page for blogs according to catalist,
-    catalist is list of dirnames, in mkdocs's scenario, it will treat dirname as
+    catalist is list of dirnames, in mkblogs's scenario, it will treat dirname as
     actual file, and transfer to 'dirname/index.md', which points to exact
     location of the index file. If using our senario, we will treat it as dir,
     then it points to dirname.

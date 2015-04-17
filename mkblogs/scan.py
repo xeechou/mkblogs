@@ -9,7 +9,7 @@ omit_path=['index.md', 'img']    #these are the initial omited path
 n_newsest_blog = 5
 
 dot_ignore = ".ignore"
-#TODO: change root path to a relative path, where we invoke mkdocs build
+#TODO: change root path to a relative path, where we invoke mkblogs build
 class ScanKeep:
     def __init__(self, topn, config):
         self.topn = topn or config.get('top_n_blogs')

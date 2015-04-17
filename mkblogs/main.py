@@ -5,18 +5,18 @@ from __future__ import print_function
 import logging
 import sys
 
-from mkdocs import __version__
-from mkdocs.build import build
-from mkdocs.config import load_config
-from mkdocs.exceptions import MkDocsException
-from mkdocs.gh_deploy import gh_deploy
-from mkdocs.new import new
-from mkdocs.serve import serve
+from mkblogs import __version__
+from mkblogs.build import build
+from mkblogs.config import load_config
+from mkblogs.exceptions import MkDocsException
+from mkblogs.gh_deploy import gh_deploy
+from mkblogs.new import new
+from mkblogs.serve import serve
 
 
 def configure_logging(options):
-    '''When a --verbose flag is passed, increase the verbosity of mkdocs'''
-    logger = logging.getLogger('mkdocs')
+    '''When a --verbose flag is passed, increase the verbosity of mkblogs'''
+    logger = logging.getLogger('mkblogs')
     logger.addHandler(logging.StreamHandler())
     if 'verbose' in options:
         logger.setLevel(logging.DEBUG)
@@ -58,7 +58,7 @@ def main(cmd, args, options=None):
         new(args, options)
     else:
         print('MkDocs (version {0})'.format(__version__))
-        print('mkdocs [help|new|build|serve|gh-deploy|json] {options}')
+        print('mkblogs [help|new|build|serve|gh-deploy|json] {options}')
 
 
 def run_main():

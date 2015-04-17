@@ -41,8 +41,8 @@ from markdown.extensions import Extension
 from markdown.treeprocessors import Treeprocessor
 
 import utils
-from mkdocs.compat import urlparse, urlunparse
-from mkdocs.exceptions import MarkdownNotFound
+from mkblogs.compat import urlparse, urlunparse
+from mkblogs.exceptions import MarkdownNotFound
 
 
 def _iter(node):

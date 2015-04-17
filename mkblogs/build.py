@@ -4,11 +4,11 @@ from __future__ import print_function
 from datetime import datetime
 
 from jinja2.exceptions import TemplateNotFound
-import mkdocs
+import mkblogs
 
-from mkdocs import nav, toc, utils, html
-from mkdocs.compat import urljoin, PY2
-from mkdocs.relative_path_ext import RelativePathExtension
+from mkblogs import nav, toc, utils, html
+from mkblogs.compat import urljoin, PY2
+from mkblogs.relative_path_ext import RelativePathExtension
 import jinja2
 import json
 import markdown
@@ -16,9 +16,9 @@ import os
 import logging
 import operator
 
-from mkdocs.build_pages import *
+from mkblogs.build_pages import *
 
-log = logging.getLogger('mkdocs')
+log = logging.getLogger('mkblogs')
 omit_path = ['index.md', 'img']
 
 

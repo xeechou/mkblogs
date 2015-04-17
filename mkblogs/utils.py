@@ -10,7 +10,7 @@ and structure of the site and pages in the site.
 import os
 import shutil
 
-from mkdocs.compat import urlparse
+from mkblogs.compat import urlparse
 
 
 def copy_file(source_path, output_path):

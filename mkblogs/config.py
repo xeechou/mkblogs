@@ -1,8 +1,8 @@
 # coding: utf-8
 
-from mkdocs import utils
-from mkdocs.compat import urlparse
-from mkdocs.exceptions import ConfigurationError
+from mkblogs import utils
+from mkblogs.compat import urlparse
+from mkblogs.exceptions import ConfigurationError
 
 import logging
 import os
@@ -77,7 +77,7 @@ DEFAULT_CONFIG = {
     'default pages' : [('index.md', 'Home'), ('catalist.md', 'Catalog')]
 }
 
-def load_config(filename='mkdocs.yml', options=None):
+def load_config(filename='mkblogs.yml', options=None):
     options = options or {}
     if 'config' in options:
         filename = options['config']
@@ -86,7 +86,7 @@ def load_config(filename='mkdocs.yml', options=None):
     with open(filename, 'r') as fp:
         user_config = yaml.load(fp)
         if not isinstance(user_config, dict):
-            raise ConfigurationError("The mkdocs.yml file is invalid. See http://www.mkdocs.org/user-guide/configuration/ for more information.")
+            raise ConfigurationError("The mkblogs.yml file is invalid. See http://www.mkdocs.org/user-guide/configuration/ for more information.")
     user_config.update(options)
     return validate_config(user_config)
 
@@ -175,7 +175,7 @@ def validate_config(user_config):
 
     # The docs dir must exist.
     # The theme dir must exist.
-    # Ensure 'theme' is one of 'mkdocs', 'readthedocs', 'custom'
+    # Ensure 'theme' is one of 'mkblogs', 'readthedocs', 'custom'
     # A homepage 'index' must exist.
     # The theme 'base.html' file must exist.
     # Cannot set repo_name without setting repo_url.

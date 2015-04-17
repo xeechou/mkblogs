@@ -35,7 +35,7 @@ class ConfigEventHandler(BuildEventHandler):
     """
     def on_any_event(self, event):
         try:
-            if os.path.basename(event.src_path) == 'mkdocs.yml':
+            if os.path.basename(event.src_path) == 'mkblogs.yml':
                 super(ConfigEventHandler, self).on_any_event(event)
         except Exception as e:
             print(e)

@@ -1,7 +1,7 @@
 #!/usr/bin/env python2.7
 from lxml import etree
 import os
-from mkdocs import build as builder
+from mkblogs import build as builder
 import logging
 #we use xml parser, since python-markdown doesn't generate complete html file
 
@@ -62,7 +62,7 @@ class ContentParser:
 
 	for img in img_list:
 	    img_src = img.attrib['src']
-	    """mkdocs create a folder for each md file, so it just adds ../ to
+	    """mkblogs create a folder for each md file, so it just adds ../ to
 	    the image the file points to.
 
 	    So we have to compute the relative path for current dir

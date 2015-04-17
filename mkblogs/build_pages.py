@@ -4,10 +4,10 @@ from __future__ import print_function
 from datetime import datetime
 from jinja2.exceptions import TemplateNotFound
 
-import mkdocs
-from mkdocs import nav, toc, utils
-from mkdocs.compat import urljoin, PY2
-from mkdocs.relative_path_ext import RelativePathExtension
+import mkblogs
+from mkblogs import nav, toc, utils
+from mkblogs.compat import urljoin, PY2
+from mkblogs.relative_path_ext import RelativePathExtension
 import jinja2
 import json
 import markdown
@@ -15,7 +15,7 @@ import os
 import logging
 import posixpath
 
-log = logging.getLogger('mkdocs')
+log = logging.getLogger('mkblogs')
 
 
 def convert_markdown(markdown_source, site_navigation=None, extensions=(), strict=False):
@@ -30,8 +30,8 @@ def convert_markdown(markdown_source, site_navigation=None, extensions=(), stric
 
     # Generate the HTML from the markdown source
     builtin_extensions = ['meta', 'toc', 'tables', 'fenced_code']
-    mkdocs_extensions = [RelativePathExtension(site_navigation, strict), ]
-    extensions = builtin_extensions + mkdocs_extensions + list(extensions)
+    mkblogs_extensions = [RelativePathExtension(site_navigation, strict), ]
+    extensions = builtin_extensions + mkblogs_extensions + list(extensions)
     md = markdown.Markdown(
         extensions=extensions
     )
@@ -99,7 +99,7 @@ def get_global_context(nav, config):
         'copyright': config['copyright'],
         'google_analytics': config['google_analytics'],
 
-        'mkdocs_version': mkdocs.__version__,
+        'mkblogs_version': mkblogs.__version__,
         'build_date_utc': datetime.utcnow()
     }
 
