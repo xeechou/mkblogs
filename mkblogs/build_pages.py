@@ -158,7 +158,7 @@ def build_404(config, env, site_navigation):
     global_context = get_global_context(site_navigation, config)
 
     output_content = template.render(global_context)
-    output_path = os.path.join(config['site_dir'], '404.html')
+    output_path = os.path.join(config['docs_dir'], '404.html')
     utils.write_file(output_content.encode('utf-8'), output_path)
 
 
@@ -197,7 +197,7 @@ def _build_page(page, config, site_navigation, env, dump_json):
     output_content = template.render(context)
 
     # Write the output file.
-    output_path = os.path.join(config['site_dir'], page.output_path)
+    output_path = os.path.join(config['docs_dir'], page.output_path)
     if dump_json:
         json_context = {
             'content': context['content'],

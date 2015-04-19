@@ -18,3 +18,4 @@ can compile them along with others.
 
 TODO: 
 1. modify config, add 'docs_dir' as prefix to pages
+2. reuse site_navigation, creating one is really painfull

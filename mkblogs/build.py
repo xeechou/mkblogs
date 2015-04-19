@@ -6,7 +6,8 @@ from datetime import datetime
 from jinja2.exceptions import TemplateNotFound
 import mkblogs
 
-from mkblogs import nav, toc, utils, html
+from mkblogs import nav, toc, utils
+from mkblogs import html
 from mkblogs.compat import urljoin, PY2
 from mkblogs.relative_path_ext import RelativePathExtension
 import jinja2
@@ -53,9 +54,9 @@ def get_blog_context(config, title, html, toc, meta):
             }
 
 class ScanContext:
-    def __init__(self, config, dir_path):
+    def __init__(self, config, dir_path, site_navigation):
         """same for all blogs"""
-        self.site_navigation = nav.SiteNavigation(config['pages'], config['use_directory_urls'])
+        self.site_navigation = site_navigation
         loader = jinja2.FileSystemLoader(config['theme_dir'])
         self.env = jinja2.Environment(loader=loader)
         """end: same for all blogs"""
@@ -71,11 +72,12 @@ class ScanContext:
         self.global_context = get_global_context(self.site_navigation, config)
 
 
-def _build_blog(input_path, config, scan_context):
+def _build_blog(path, config, scan_context):
     """
     convert a blog from @input_path to @output_path html, this func differ from
     _build_page where it use a page struct.
     """
+    input_path = os.path.join(config['docs_dir'], path)
     try:
         input_content = open(input_path, 'r').read()
     except IOError:
@@ -132,26 +134,30 @@ def add_top_n(newest_paths, to_add, n):
     return sorted(newest_paths, key=operator.itemgetter(1), \
             reverse=True)[:n]
 
-def recursive_scan(this_dir, config, n_new, cata_list, genindex=True):
+def recursive_scan(this_dir, config, n_new, cata_list, site_navigation, genindex=True):
     """
-    @this_dir starts inside docs, so you will never see 'docs/' in it. Inside
-    function, we use true_path to represent the relpath from '/' to now
-    
+    @this_dir starts inside docs, so you will never see 'docs/' in it. 
+    @real_dir is @this_dir with a prefix, so we can list files done here
+    @we use a @doc_path to indicate a logic log path, use @_doc_path to
+    represent true path.
+
     also, we record the newest N blogs
     we use one single global_context to represent all files in the same dir
     """
-    scan_context = ScanContext(config, this_dir)
+    real_dir = os.path.join(config['docs_dir'], this_dir)
+    scan_context = ScanContext(config, this_dir, site_navigation)
 
     global omit_path
     newest_paths = []
     local_paths = []
     dot_ignore = '.ignore'
     #globally ignore pages
-    
-    paths = os.listdir(this_dir)
-    ignored_files = read_ignore(os.path.join(this_dir, dot_ignore))
+
+    paths = os.listdir(real_dir)
+    ignored_files = read_ignore(os.path.join(real_dir, dot_ignore))
     for f in paths:
-        doc_path  = os.path.join(this_dir,  f)
+        doc_path  = os.path.join(this_dir, f)
+        _doc_path = os.path.join(real_dir, f)
 
         #locally ignored
         if f == dot_ignore:
@@ -164,17 +170,17 @@ def recursive_scan(this_dir, config, n_new, cata_list, genindex=True):
         if is_page(doc_path, config['pages']):
             continue
 
-        if utils.is_markdown_file(doc_path) and is_newmd(doc_path):
+        if utils.is_markdown_file(_doc_path) and is_newmd(_doc_path):
 #XXX: build page when it is new
             title = _build_blog(doc_path, config, scan_context)   
-            addtime = os.path.getatime(doc_path)
+            addtime = os.path.getatime(_doc_path)
 
             local_paths.append((title, f, addtime))
             newest_paths.append((doc_path, addtime))
 
-        elif os.path.isdir(doc_path):
-            sub_newest_paths = recursive_scan(os.path.join(this_dir, f), config, n_new,
-                    cata_list, scan_context)
+        elif os.path.isdir(_doc_path):
+            sub_newest_paths = recursive_scan(doc_path, config, n_new,
+                    cata_list, site_navigation)
 #XXX: update top N pages
             newest_paths = add_top_n(newest_paths, sub_newest_paths, n_new)
         else:
@@ -182,10 +188,9 @@ def recursive_scan(this_dir, config, n_new, cata_list, genindex=True):
 
         #now, we should generate a index.md for this dir
         #if this dir contains no markdowns, we don't generate index for it.
-
     if genindex == True and len(newest_paths) > 0:
         index_path = os.path.join(this_dir, 'index.md')
-        html.write_index(index_md, local_paths)
+        html.write_index(index_path, local_paths, config)
         _build_blog(index_path, config, scan_context)
 #XXX: add to cata_list
         cata_list.append(this_dir)
@@ -256,18 +261,20 @@ def build(config, live_server=False, clean_site_dir=False):
 
 
 
-import config as Config
-import build as Build
-from lxml import html
-
+from mkblogs import config
 if __name__ == "__main__":
-    config = Config.load_config('tests/test_conf.yml')
-    print(config['pages'])
-    #so basically you need add a '/' to urls, 
+    logger = logging.getLogger('mkblogs')
+    logger.addHandler(logging.StreamHandler())
+    logger.setLevel(logging.DEBUG)
 
+    config = config.load_config('tests/test_conf.yml')
+    #print(config['pages'])
+    #so basically you need add a '/' to urls, 
     cata_list = []
-    news_path = recursive_scan('docs', config, 5, cata_list, genindex=False)
-    print(len(news_path))
+    site_navigation = nav.SiteNavigation(config, config['use_directory_urls'])
+    news_path = recursive_scan('', config, 5, cata_list, site_navigation, genindex=False)
+    build_pages(config)
+    print(news_path)
 
     #scan_context.set_global_context(nav.Page(None,url='/test/test.md', path='test/test.md',\
     #    url_context=nav.URLContext), config)

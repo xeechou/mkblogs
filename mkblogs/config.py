@@ -113,9 +113,7 @@ def validate_config(user_config):
         raise ConfigurationError(
             "The 'site_dir' can't be within the 'docs_dir'.")
 
-    # If not specified, then the 'pages' config simply includes all
-    # markdown files in the docs dir, without generating any header items
-    # for them.
+    # If not specified, then the 'pages' config simply are catalist and index.md
     pages = []
     extra_css = []
     extra_javascript = []
@@ -124,13 +122,7 @@ def validate_config(user_config):
             fullpath = os.path.join(dirpath, filename)
             relpath = os.path.relpath(fullpath, config['docs_dir'])
 
-            if utils.is_markdown_file(filename):
-                # index pages should always be the first listed page.
-                if os.path.splitext(relpath)[0] == 'index':
-                    pages.insert(0, relpath)
-                else:
-                    pages.append(relpath)
-            elif utils.is_css_file(filename):
+            if utils.is_css_file(filename):
                 extra_css.append(relpath)
             elif utils.is_javascript_file(filename):
                 extra_javascript.append(relpath)

@@ -8,7 +8,7 @@ def get_located_path(file_path):
     """
     return os.path.basename(os.path.dirname(file_path))
 
-def write_index(path, indices, title=None):
+def write_index(path, indices, config, title=None):
     """
     write @indices to @path, generate title if not provided
     @blog_path is just a name, means you want open it, u need 
@@ -22,7 +22,7 @@ def write_index(path, indices, title=None):
             title = 'Index'
     #sort indices
     sorted_inds = sorted(indices, key=operator.itemgetter(2))
-    with open(path, 'w') as f:
+    with open(os.path.join(config['docs_dir'], path), 'w') as f:
         f.write("#{}\n".format(title))
         f.write("\n")
         for (name, blog_path, build_time) in sorted_inds:
