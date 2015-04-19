@@ -5,9 +5,4 @@ extra_javascript: ['https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX
 pages:
 - [index.md, Home]
 - [Cluster/BigCLAM.md, 初识BIGCLAM]
-- [anotherdoc.md, anotherdoc]
-- [anotherdoc1.md, anotherdoc1]
-- [anotherdoc2.md, anotherdoc2]
-- [anotherdoc3.md, anotherdoc3]
-- [anotherdoc4.md, anotherdoc4]
 
