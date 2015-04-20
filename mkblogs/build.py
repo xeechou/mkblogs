@@ -228,8 +228,7 @@ def build_blogs(config):
             n_pages, cata_list,genindex=False)
     #write index.md and cata.md, since they are just [0] and [1] in the list, we
     #just need to do this
-    cata_path = os.path.join(config['docs_dir'], config['pages'][1][0])
-    parser.write_catalog(cata_path, cata_list)
+    parser.write_catalog(config, cata_list)
 
 def build(config, live_server=False, clean_site_dir=False):
     """

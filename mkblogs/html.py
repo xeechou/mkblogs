@@ -63,7 +63,7 @@ def write_index(path, indices, config, title=None):
             f.write("*  [{0}]({1})\n".format(name, blog_path))
         f.close()
 
-def write_catalog(path, catalist):
+def write_catalog(config, catalist):
     """
     write the top catalog page for blogs according to catalist,
     catalist is list of dirnames, in mkblogs's scenario, it will treat dirname as
@@ -71,9 +71,12 @@ def write_catalog(path, catalist):
     location of the index file. If using our senario, we will treat it as dir,
     then it points to dirname.
     """
+    cata_path = config['pages'][1][0]
+    path = os.join(config['docs_dir'], cata_path)
     with open(path, 'w') as f:
         for (name, index_path) in catalist:
-            f.write("*  [{0}]({1})\n".format(name, os.path.relpath(index_path, path)))
+            f.write("*  [{0}]({1})\n".\
+                    format(name, os.path.relpath(index_path, cata_path)))
         f.close()
 
 #we use xml parser, since python-markdown doesn't generate complete html file
