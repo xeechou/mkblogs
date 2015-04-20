@@ -114,7 +114,16 @@ def validate_config(user_config):
             "The 'site_dir' can't be within the 'docs_dir'.")
 
     # If not specified, then the 'pages' config simply are catalist and index.md
-    pages = []
+    pages = config['default pages']
+
+    for page in config['pages']:
+        if page[1] == 'Home' and page[0] != 'index.md':
+            raise NameError('Invalid home name')
+        elif page[1] == 'Catalog':
+            pages[1] = (page[0], 'Catalog')
+        else:
+            pages.append(page)
+
     extra_css = []
     extra_javascript = []
     for (dirpath, dirnames, filenames) in os.walk(config['docs_dir']):
@@ -126,9 +135,6 @@ def validate_config(user_config):
                 extra_css.append(relpath)
             elif utils.is_javascript_file(filename):
                 extra_javascript.append(relpath)
-
-    if config['pages'] is None:
-        config['pages'] = pages
 
     if config['extra_css'] is None:
         config['extra_css'] = extra_css

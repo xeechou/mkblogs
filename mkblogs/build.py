@@ -7,7 +7,7 @@ from jinja2.exceptions import TemplateNotFound
 import mkblogs
 
 from mkblogs import nav, toc, utils
-from mkblogs import html
+from mkblogs import html as parser
 from mkblogs.compat import urljoin, PY2
 from mkblogs.relative_path_ext import RelativePathExtension
 import jinja2
@@ -92,7 +92,7 @@ def _build_blog(path, config, scan_context):
     #TODO: we need a different convert_markdown coz:
     #1. convert_markdown gives wrong links.
     #2. we need a title here.
-    html_content, toc, meta = convert_markdown(
+    html_content, toc, meta = parser.convert_markdown(
         input_content, #without site_navigation
         extensions=config['markdown_extensions'], strict=config['strict']
     )
@@ -190,7 +190,7 @@ def recursive_scan(this_dir, config, n_new, cata_list, site_navigation, genindex
         #if this dir contains no markdowns, we don't generate index for it.
     if genindex == True and len(newest_paths) > 0:
         index_path = os.path.join(this_dir, 'index.md')
-        html.write_index(index_path, local_paths, config)
+        parser.write_index(index_path, local_paths, config)
         _build_blog(index_path, config, scan_context)
 #XXX: add to cata_list
         cata_list.append(this_dir)
@@ -226,7 +226,10 @@ def build_blogs(config):
     cata_list = []
     n_newest_path = newest_blogs = recursive_scan('.', config, 
             n_pages, cata_list,genindex=False)
-    #write index.md and cata.md
+    #write index.md and cata.md, since they are just [0] and [1] in the list, we
+    #just need to do this
+    cata_path = os.path.join(config['docs_dir'], config['pages'][1][0])
+    parser.write_catalog(cata_path, cata_list)
 
 def build(config, live_server=False, clean_site_dir=False):
     """
@@ -275,8 +278,3 @@ if __name__ == "__main__":
     news_path = recursive_scan('', config, 5, cata_list, site_navigation, genindex=False)
     build_pages(config)
     print(news_path)
-
-    #scan_context.set_global_context(nav.Page(None,url='/test/test.md', path='test/test.md',\
-    #    url_context=nav.URLContext), config)
-    #content = Build._build_blog('tests/test.md', config, scan_context)
-    #print(content)

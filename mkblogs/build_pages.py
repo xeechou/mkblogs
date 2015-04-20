@@ -7,7 +7,7 @@ from jinja2.exceptions import TemplateNotFound
 import mkblogs
 from mkblogs import nav, toc, utils
 from mkblogs.compat import urljoin, PY2
-from mkblogs.relative_path_ext import RelativePathExtension
+from mkblogs import html as parser
 import jinja2
 import json
 import markdown
@@ -18,34 +18,6 @@ import posixpath
 log = logging.getLogger('mkblogs')
 
 
-def convert_markdown(markdown_source, site_navigation=None, extensions=(), strict=False):
-    """
-    Convert the Markdown source file to HTML content, and additionally
-    return the parsed table of contents, and a dictionary of any metadata
-    that was specified in the Markdown file.
-
-    `extensions` is an optional sequence of Python Markdown extensions to add
-    to the default set.
-    """
-
-    # Generate the HTML from the markdown source
-    builtin_extensions = ['meta', 'toc', 'tables', 'fenced_code']
-    mkblogs_extensions = [RelativePathExtension(site_navigation, strict), ]
-    extensions = builtin_extensions + mkblogs_extensions + list(extensions)
-    md = markdown.Markdown(
-        extensions=extensions
-    )
-    html_content = md.convert(markdown_source)
-
-    # On completely blank markdown files, no Meta or tox properties are added
-    # to the generated document.
-    meta = getattr(md, 'Meta', {})
-    toc_html = getattr(md, 'toc', '')
-
-    # Post process the generated table of contents into a data structure
-    table_of_contents = toc.TableOfContents(toc_html)
-
-    return (html_content, table_of_contents, meta)
 
 
 def get_global_context(nav, config):
@@ -177,7 +149,7 @@ def _build_page(page, config, site_navigation, env, dump_json):
         input_content = input_content.decode('utf-8')
 
     # Process the markdown text
-    html_content, table_of_contents, meta = convert_markdown(
+    html_content, table_of_contents, meta = parser.convert_markdown(
         input_content, site_navigation,
         extensions=config['markdown_extensions'], strict=config['strict']
     )
