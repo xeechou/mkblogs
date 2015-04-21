@@ -1,6 +1,8 @@
 import os, operator
-from mkblogs import utils, nav
+from mkblogs import utils, nav, toc
 from mkblogs.relative_path_ext import RelativePathExtension
+import markdown
+import logging
 
 """
 compiling functions

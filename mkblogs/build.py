@@ -6,7 +6,7 @@ from datetime import datetime
 from jinja2.exceptions import TemplateNotFound
 import mkblogs
 
-from mkblogs import nav, toc, utils
+from mkblogs import nav, utils
 from mkblogs import html as parser
 from mkblogs.compat import urljoin, PY2
 from mkblogs.relative_path_ext import RelativePathExtension
