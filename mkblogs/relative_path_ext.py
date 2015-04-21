@@ -130,3 +130,20 @@ class RelativePathExtension(Extension):
     def extendMarkdown(self, md, md_globals):
         relpath = RelativePathTreeprocessor(self.site_navigation, self.strict)
         md.treeprocessors.add("relpath", relpath, "_end")
+
+class TitleTreeprocessor(Treeprocessor):
+    def run(self, root):
+        """
+        find first <h1> then set it, so later we can get it back 
+        """
+        for element in _iter(root):
+            if element.tag == 'h1':
+                self.markdown.doc_title = element.text
+                break
+        return root
+
+class TitleExtension(Extension):
+    def extendMarkdown(self, md, md_globals):
+        title = TitleTreeprocessor(md)
+        md.treeprocessors.add("myTitle", title, "_end")
+
