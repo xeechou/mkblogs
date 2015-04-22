@@ -33,7 +33,8 @@ DEFAULT_CONFIG = {
     # If `True`, use `<page_name>/index.hmtl` style files with hyperlinks to the directory.
     # If `False`, use `<page_name>.html style file with hyperlinks to the file.
     # True generates nicer URLs, but False is useful if browsing the output on a filesystem.
-    'use_directory_urls': True,
+    # This is too annoying
+    #'use_directory_urls': True,
 
     # Specify a link to the project source repo to be included
     # in the documentation pages.

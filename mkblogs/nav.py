@@ -27,13 +27,12 @@ def filename_to_title(filename):
 
 
 class SiteNavigation(object):
-    def __init__(self, pages_config, use_directory_urls=True):
+    def __init__(self, pages_config):
         self.url_context = URLContext()
         self.file_context = FileContext()
         self.nav_items, self.pages = \
-            _generate_site_navigation(pages_config, self.url_context, use_directory_urls)
+            _generate_site_navigation(pages_config, self.url_context)
         self.homepage = self.pages[0] if self.pages else None
-        self.use_directory_urls = use_directory_urls
 
     def __str__(self):
         return ''.join([str(item) for item in self])
@@ -189,7 +188,7 @@ class Header(object):
         return ret
 
 
-def _generate_site_navigation(pages_config, url_context, use_directory_urls=True):
+def _generate_site_navigation(pages_config, url_context):
     """
     Returns a list of Page and Header instances that represent the
     top level site navigation.
@@ -224,7 +223,7 @@ def _generate_site_navigation(pages_config, url_context, use_directory_urls=True
             filename = path.split(os.path.sep)[0]
             title = filename_to_title(filename)
 
-        url = utils.get_url_path(path, use_directory_urls)
+        url = utils.get_url_path(path)
 
         if not child_title:
             # New top level page.

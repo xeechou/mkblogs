@@ -85,47 +85,21 @@ def get_html_path(path):
     Paths like 'api-guide/core.md' will be converted to 'api-guide/core/index.html'
     """
     path = os.path.splitext(path)[0]
-    if os.path.basename(path) == 'index':
-        return path + '.html'
-    return "/".join((path, 'index.html'))
+    return path + '.html'
 
-
-def get_url_path(path, use_directory_urls=True):
+def get_url_path(path):
     """
     Map a source file path to an output html path.
 
     Paths like 'index.md' will be converted to '/'
-    Paths like 'about.md' will be converted to '/about/'
-    Paths like 'api-guide/core.md' will be converted to '/api-guide/core/'
+    Paths like 'about.md' will be converted to '/about.html'
+    Paths like 'api-guide/core.md' will be converted to '/api-guide/core.html'
 
-    If `use_directory_urls` is `False`, returned URLs will include the a trailing
-    `index.html` rather than just returning the directory path.
     """
     path = get_html_path(path)
     url = '/' + path.replace(os.path.sep, '/')
-    if use_directory_urls:
-        return url[:-len('index.html')]
     return url
 
-def get_blog_html_path(path):
-    path = os.path.splitext(path)[0]
-    return path + '.html'
-
-def get_blog_url_path(path):
-    """
-    Map a source file path to an html path
-
-    we don't create directory for each source file since it is totally
-    unecessary for blogs.
-
-    Paths like 'index.md' will be converted to '/'
-    Paths like 'about.md' will be converted to '/about.html'
-    Paths like 'api-guide/core.md' will be converted to '/api-guide/core.html'
-    """
-    path = get_blog_html_path(path)
-    url = '/' + path.replace(os.path.sep, '/')
-
-    return url
 
 def is_homepage(path):
     return os.path.splitext(path)[0] == 'index'
@@ -221,13 +195,16 @@ def create_relative_media_url(nav, url):
         url = url[1:]
     else:
         base = nav.url_context.base_path
-
+    # base became himself, so first %s/ is just '.'
     relative_url = '%s/%s' % (nav.url_context.make_relative(base), url)
 
     # TODO: Fix this, this is a hack. Relative urls are not being calculated
     # correctly for images in the same directory as the markdown. I think this
     # is due to us moving it into a directory with index.html, but I'm not sure
-    if nav.url_context.base_path is not '/' and relative_url.startswith("./"):
-        relative_url = ".%s" % relative_url
+
+    # TODO: I may want to get rid of below, transforming page.md to
+    # page/index.html is too annoying
+    #if nav.url_context.base_path is not '/' and relative_url.startswith("./"):
+    #    relative_url = ".%s" % relative_url
 
     return relative_url

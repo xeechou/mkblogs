@@ -65,7 +65,7 @@ class ScanContext:
         media files, we just use a dummpy path to handle it.
         """
         dummpy = os.path.join(dir_path, 'dummpy')
-        dummpy_page = nav.Page(None, url=utils.get_blog_url_path(dummpy),
+        dummpy_page = nav.Page(None, url=utils.get_url_path(dummpy),
                 path=dummpy, url_context=nav.URLContext())
 
         self.site_navigation.update_path(dummpy_page)
@@ -273,7 +273,7 @@ if __name__ == "__main__":
     #print(config['pages'])
     #so basically you need add a '/' to urls, 
     cata_list = []
-    site_navigation = nav.SiteNavigation(config, config['use_directory_urls'])
+    site_navigation = nav.SiteNavigation(config)
     news_path = recursive_scan('', config, 5, cata_list, site_navigation, genindex=False)
     build_pages(config)
     print(news_path)

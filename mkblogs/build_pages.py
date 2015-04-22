@@ -187,7 +187,7 @@ def build_pages(config, dump_json=False):
     """
     Builds all the pages and writes them into the build directory.
     """
-    site_navigation = nav.SiteNavigation(config['pages'], config['use_directory_urls'])
+    site_navigation = nav.SiteNavigation(config['pages'])
     loader = jinja2.FileSystemLoader(config['theme_dir'])
     env = jinja2.Environment(loader=loader)
 
