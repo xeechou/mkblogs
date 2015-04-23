@@ -81,8 +81,7 @@ def get_html_path(path):
     Map a source file path to an output html path.
 
     Paths like 'index.md' will be converted to 'index.html'
-    Paths like 'about.md' will be converted to 'about/index.html'
-    Paths like 'api-guide/core.md' will be converted to 'api-guide/core/index.html'
+    Paths like 'api-guide/core.md' will be converted to 'api-guide/core.html'
     """
     path = os.path.splitext(path)[0]
     return path + '.html'
@@ -91,7 +90,7 @@ def get_url_path(path):
     """
     Map a source file path to an output html path.
 
-    Paths like 'index.md' will be converted to '/'
+    Paths like 'index.md' will be converted to '/index.html'
     Paths like 'about.md' will be converted to '/about.html'
     Paths like 'api-guide/core.md' will be converted to '/api-guide/core.html'
 

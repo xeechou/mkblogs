@@ -9,7 +9,7 @@ import mkblogs
 from mkblogs import nav, utils
 from mkblogs import html as parser
 from mkblogs.compat import urljoin, PY2
-from mkblogs.relative_path_ext import RelativePathExtension
+from mkblogs.relative_path_ext import RelativePathExtension, TitleExtension
 import jinja2
 import json
 import markdown
@@ -60,6 +60,7 @@ class ScanContext:
         loader = jinja2.FileSystemLoader(config['theme_dir'])
         self.env = jinja2.Environment(loader=loader)
         """end: same for all blogs"""
+
         """
         since all files in the same dir all share the have same reference to
         media files, we just use a dummpy path to handle it.
@@ -70,7 +71,6 @@ class ScanContext:
 
         self.site_navigation.update_path(dummpy_page)
         self.global_context = get_global_context(self.site_navigation, config)
-
 
 def _build_blog(path, config, scan_context):
     """
@@ -90,16 +90,22 @@ def _build_blog(path, config, scan_context):
     # Process the markdown text
 
     #TODO: we need a different convert_markdown coz:
-    #1. convert_markdown gives wrong links.
-    #2. we need a title here.
-    html_content, toc, meta = parser.convert_markdown(
-        input_content, #without site_navigation
-        extensions=config['markdown_extensions'], strict=config['strict']
-    )
+    #okay, there is a hack here, we pase a externsion struct in, when we
+    #return, there will be md struct there. we can get what we want from md.
+    extens = config['markdown_extensions']
+    extens.append(TitleExtension())
 
+    html_content, toc, meta, md = parser.convert_markdown(
+        input_content, #without site_navigation
+        extensions=extens, strict=config['strict'], wantmd=True
+    )
+    title = getattr(md, 'doc_title', '')
+    del md
+
+    #if we want to parallize, we have to acquire a lock for global_context
     context = scan_context.global_context
-    context.update(BLANK_BLOG_CONTEXT)     #title
-    context.update(get_blog_context(config, None, html_content, toc, meta))
+    context.update(BLANK_BLOG_CONTEXT)
+    context.update(get_blog_context(config, title, html_content, toc, meta))
 
     # Allow 'template:' override in md source files.
     if 'template' in meta:
@@ -218,17 +224,16 @@ def is_page(doc_path, pages):
 
 
 def build_blogs(config):
-    build_path = config['docs_dir']
     topn = config.get('n_blogs_to_show') or 5
-
-    scan_context = ScanContext(config)
-    
     cata_list = []
+    site_navigation = nav.SiteNavigation(config)
+
     n_newest_path = newest_blogs = recursive_scan('.', config, 
-            n_pages, cata_list,genindex=False)
+            topn, cata_list, site_navigation, genindex=False)
     #write index.md and cata.md, since they are just [0] and [1] in the list, we
     #just need to do this
     parser.write_catalog(config, cata_list)
+    parser.write_top_index(config, n_newest_path)
 
 def build(config, live_server=False, clean_site_dir=False):
     """
@@ -272,8 +277,5 @@ if __name__ == "__main__":
     config = config.load_config('tests/test_conf.yml')
     #print(config['pages'])
     #so basically you need add a '/' to urls, 
-    cata_list = []
-    site_navigation = nav.SiteNavigation(config)
-    news_path = recursive_scan('', config, 5, cata_list, site_navigation, genindex=False)
+    build_blogs(config)
     build_pages(config)
-    print(news_path)

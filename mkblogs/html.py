@@ -7,7 +7,8 @@ import logging
 """
 compiling functions
 """
-def convert_markdown(markdown_source, site_navigation=None, extensions=(), strict=False):
+def convert_markdown(markdown_source, site_navigation=None, extensions=(),
+        strict=False, wantmd=False):
     """
     Convert the Markdown source file to HTML content, and additionally
     return the parsed table of contents, and a dictionary of any metadata
@@ -34,7 +35,10 @@ def convert_markdown(markdown_source, site_navigation=None, extensions=(), stric
     # Post process the generated table of contents into a data structure
     table_of_contents = toc.TableOfContents(toc_html)
 
-    return (html_content, table_of_contents, meta)
+    if wantmd:
+        return (html_content, table_of_contents, meta, md)
+    else:
+        return (html_content, table_of_contents, meta)
 
 
 def get_located_path(file_path):
@@ -74,36 +78,38 @@ def write_catalog(config, catalist):
     then it points to dirname.
     """
     cata_path = config['pages'][1][0]
-    path = os.join(config['docs_dir'], cata_path)
+    path = os.path.join(config['docs_dir'], cata_path)
     with open(path, 'w') as f:
         for (name, index_path) in catalist:
             f.write("*  [{0}]({1})\n".\
                     format(name, os.path.relpath(index_path, cata_path)))
         f.close()
 
-#we use xml parser, since python-markdown doesn't generate complete html file
 
-# Another thing I want to mention here: 
+
+#Code Block for writing THE index.html
+#we use xml parser, since python-markdown doesn't generate complete html file
 # markdown is compatible to html code, so we can just operate on generated
-# html code, you know, relocate the images. Awesome.
+# html code, you know, relocate the images.
 
 ## some constant, first line break:
 line_seperator = "\n-------------------------------------\n"
 
 class ContentParser:
-    def __init__(self, curr_dir):
-        if not os.path.isabs(curr_dir) or not os.path.isdir(curr_dir):
-		raise NameError('Unsupport')
-	self.curr_dir = curr_dir
+    def __init__(self, config):
+	self.root_path = config['docs_dir']
+        self.extensions = config['markdown_extensions']
 
     def merge_htmls(self, head_list):
 	whole_md = ""
 	global line_seperator
 
-	for (html, head) in head_list:
+	for html in head_list:
 	    whole_md += html
 	    whole_md += line_seperator
-	whole_md -= line_seperator
+        whole_md = whole_md[:-line_seperator]
+        return whole_md
+
     def get_heads(self, md_path, nlines):
         """
         get n lines from file @md_path and translate it, relocate the image
@@ -111,22 +117,21 @@ class ContentParser:
         """
         if nlines <= 0:
             return None
-        if not os.path.isabs(md_path):
-		raise NameError('Unsupport')
 
-        rel_path = os.path.relpath(os.path.dirname(md_path), self.curr_path)
+        rel_path = os.path.dirname(md_path) #rel_path could be ''
 
         md_src = ""
 	""" 
 	This is our current approach, a better method needs match the indention
 	depth for last few lines, so we not encounter any sudden break
 	"""
-        with open(md_path) as f:
+
+        with open(os.path.join(root_path, md_path)) as f:
             for i in range(nlines):
                 md_src += f.readline()
             f.close()
 	md_src = md_src.decode('utf-8')
-        (html, toc, meta) = build.convert_markdown(md_src)
+        (html, toc, meta) = convert_markdown(md_src, extensions=extensions)
 
 	tree = etree.fromstring(u'<html>'+html+u'</html>')
 
@@ -136,25 +141,28 @@ class ContentParser:
 	title = title[0].text
 
 	"""Now we relocate the images"""
-	img_list = tree.xpath("//img")
+	relocate_list = tree.xpath("//img")
+        relocate_list.extend = tree.xpath("//a")
 
-	for img in img_list:
-	    img_src = img.attrib['src']
-	    """mkblogs create a folder for each md file, so it just adds ../ to
-	    the image the file points to.
+	for element in relocate_list:
+            if element.tag == 'a':  #<a href>
+                key = 'href'
+                to_replace = element.attrib['href']
+                to_replace = utils.get_html_path(to_replace)
+            else:
+                key = 'src'         #<img src>
+	        to_replace = element.attrib['src']
 
-	    So we have to compute the relative path for current dir
-	    """
-	    if os.path.isabs(img_src):
-		raise NameError('Abslute path is not supported')
-	    else:
-		img_src = os.path.join(rel_path, img_src)
+            if to_replace.startswith('/'):
+                to_replace = to_replace[1:]
+            else:
+		to_replace = os.path.join(rel_path, to_replace)
 		
-	    img.attrib['src'] = img_src
+	    element.attrib[key] = to_replace
 
         #TODO: add a readmore in the text
-	return (title, ContentParser.__remove__html_tag(\
-			etree.tostring(tree, encoding='utf-8')))
+	return ContentParser.__remove__html_tag(\
+			etree.tostring(tree, encoding='utf-8'))
     @staticmethod
     def __remove__html_tag(string):
 	""" remove the <html> </html> tags at head and tail """
@@ -164,6 +172,19 @@ class ContentParser:
 	if string.endswith('</html>'):
 	    string = string[:-7]
 	return string
+
+def write_top_index(config, newest_path):
+    index_generator = ContentParser(config)
+    index_content = []
+    for i in newest_path:
+        index_content.append(index_generator.get_heads(i, 20))
+
+    index_content = index_generator.merge_htmls(index_content)
+
+    with open(os.path.join(config['docs_dir'], 'index.md'), 'w') as f:
+        f.write(index_content)
+        f.close()
+
 
 if __name__ == "__main__":
     """
