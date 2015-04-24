@@ -1,4 +1,5 @@
 import os, operator
+from lxml import etree
 from mkblogs import utils, nav, toc
 from mkblogs.relative_path_ext import RelativePathExtension
 import markdown
@@ -68,6 +69,7 @@ def write_index(path, indices, config, title=None):
         for (name, blog_path, build_time) in sorted_inds:
             f.write("*  [{0}]({1})\n".format(name, blog_path))
         f.close()
+    return title
 
 def write_catalog(config, catalist):
     """
@@ -81,8 +83,9 @@ def write_catalog(config, catalist):
     path = os.path.join(config['docs_dir'], cata_path)
     with open(path, 'w') as f:
         for (name, index_path) in catalist:
-            f.write("*  [{0}]({1})\n".\
-                    format(name, os.path.relpath(index_path, cata_path)))
+            if not name:
+                name = nav.filename_to_title(index_path)
+            f.write("*  [{0}]({1})\n".format(name, cata_path))
         f.close()
 
 
@@ -107,7 +110,7 @@ class ContentParser:
 	for html in head_list:
 	    whole_md += html
 	    whole_md += line_seperator
-        whole_md = whole_md[:-line_seperator]
+        whole_md = whole_md[:-len(line_seperator)]
         return whole_md
 
     def get_heads(self, md_path, nlines):
@@ -118,7 +121,7 @@ class ContentParser:
         if nlines <= 0:
             return None
 
-        rel_path = os.path.dirname(md_path) #rel_path could be ''
+        rel_path = os.path.dirname(md_path)         #rel_path could be ''
 
         md_src = ""
 	""" 
@@ -126,23 +129,23 @@ class ContentParser:
 	depth for last few lines, so we not encounter any sudden break
 	"""
 
-        with open(os.path.join(root_path, md_path)) as f:
+        with open(os.path.join(self.root_path, md_path)) as f:
             for i in range(nlines):
                 md_src += f.readline()
             f.close()
 	md_src = md_src.decode('utf-8')
-        (html, toc, meta) = convert_markdown(md_src, extensions=extensions)
+        (html, toc, meta) = convert_markdown(md_src, extensions= self.extensions)
 
 	tree = etree.fromstring(u'<html>'+html+u'</html>')
 
-	title = tree.xpath("//h1")
-	if len(title) > 1:
+	titles = tree.xpath("//h1")
+	if len(titles) > 1:
 		raise NameError("Multiple titles")
-	title = title[0].text
+	title = titles[0].text
 
 	"""Now we relocate the images"""
 	relocate_list = tree.xpath("//img")
-        relocate_list.extend = tree.xpath("//a")
+        relocate_list.extend(tree.xpath("//a"))
 
 	for element in relocate_list:
             if element.tag == 'a':  #<a href>
@@ -177,9 +180,10 @@ def write_top_index(config, newest_path):
     index_generator = ContentParser(config)
     index_content = []
     for i in newest_path:
-        index_content.append(index_generator.get_heads(i, 20))
+        index_content.append(index_generator.get_heads(i[0], 20))
 
     index_content = index_generator.merge_htmls(index_content)
+    print(index_content)
 
     with open(os.path.join(config['docs_dir'], 'index.md'), 'w') as f:
         f.write(index_content)

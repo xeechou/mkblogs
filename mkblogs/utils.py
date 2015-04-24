@@ -151,6 +151,34 @@ def is_html_file(path):
         '.htm',
     ]
 
+def is_newmd(doc_path):
+    """
+    test if @doc_path worth compiling
+    @doc_path has to exists
+    """
+    html_path  = os.path.splitext(doc_path)[0] + '.html'
+
+    if not os.path.exists(html_path):
+        return True
+    doc_mtime  = os.path.getmtime(doc_path)
+    html_mtime = os.path.getmtime(html_path)
+    return True if doc_mtime > html_mtime else False
+
+
+def is_page(doc_path, pages):
+    """
+    will not work in this case:
+    in someplace
+    a = ../someplace/aaa.md
+    b = aaa.md
+    """
+    for [path, name] in pages:
+        if os.path.relpath(doc_path, path) == '.':
+            return True
+    return False
+
+
+
 
 def create_media_urls(nav, url_list):
     """
@@ -176,9 +204,9 @@ def create_relative_media_url(nav, url):
         image.png -> ./image.png
         /image.png -> ./image.png
 
-    on sub/page.md (which becomes /sub/page/index.html):
-        image.png -> ../image.png
-        /image.png -> ../../image.png
+    on sub/page.md (which becomes /sub/page.html):
+        image.png -> ./image.png
+        /image.png -> ./../image.png
 
     """
 

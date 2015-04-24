@@ -173,10 +173,10 @@ def recursive_scan(this_dir, config, n_new, cata_list, site_navigation, genindex
         if f in omit_path:
             continue
         #globally ingored
-        if is_page(doc_path, config['pages']):
+        if utils.is_page(doc_path, config['pages']):
             continue
 
-        if utils.is_markdown_file(_doc_path) and is_newmd(_doc_path):
+        if utils.is_markdown_file(_doc_path) and utils.is_newmd(_doc_path):
 #XXX: build page when it is new
             title = _build_blog(doc_path, config, scan_context)   
             addtime = os.path.getatime(_doc_path)
@@ -196,31 +196,15 @@ def recursive_scan(this_dir, config, n_new, cata_list, site_navigation, genindex
         #if this dir contains no markdowns, we don't generate index for it.
     if genindex == True and len(newest_paths) > 0:
         index_path = os.path.join(this_dir, 'index.md')
-        parser.write_index(index_path, local_paths, config)
+        index_title = parser.write_index(index_path, local_paths, config)
         _build_blog(index_path, config, scan_context)
 #XXX: add to cata_list
-        cata_list.append(this_dir)
+        cata_list.append((index_title, this_dir))
 
     #XXX: restore context
     return add_top_n(newest_paths, [], n_new)
 
 
-def is_newmd(doc_path):
-    """
-    test if @doc_path worth compiling
-    @doc_path has to exists
-    """
-    html_path  = os.path.splitext(doc_path)[0] + '.html'
-
-    if not os.path.exists(html_path):
-        return True
-    doc_mtime  = os.path.getmtime(doc_path)
-    html_mtime = os.path.getmtime(html_path)
-    return True if doc_mtime > html_mtime else False
-
-
-def is_page(doc_path, pages):
-    return True if doc_path in [i[0] for i in pages] else False
 
 
 def build_blogs(config):
@@ -232,6 +216,7 @@ def build_blogs(config):
             topn, cata_list, site_navigation, genindex=False)
     #write index.md and cata.md, since they are just [0] and [1] in the list, we
     #just need to do this
+    print(config['pages'])
     parser.write_catalog(config, cata_list)
     parser.write_top_index(config, n_newest_path)
 
