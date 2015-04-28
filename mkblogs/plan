@@ -14,8 +14,19 @@ can compile them along with others.
 
 3. Afterwards, copy all the media files to site_directory.
 
+DONE:
++. modify config, add 'docs_dir' as prefix to pages
++. reuse site_navigation, creating one is really painfull
++. read _generate_site_navigation and path_to_url, now we decided not to use
+   separate directory for every page, there must be something we need to fix.
 
 
 TODO: 
-1. modify config, add 'docs_dir' as prefix to pages
-2. reuse site_navigation, creating one is really painfull
++. Problems occur when generate nav_items, find problem with it.
+
++. generate write index.md whenever we need to update blogs.
+
++. use python native src file as conf format, use importlib.import_module to
+   import it.
+
++. do not generate index.md if no needs
