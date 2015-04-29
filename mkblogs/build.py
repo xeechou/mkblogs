@@ -210,13 +210,12 @@ def recursive_scan(this_dir, config, n_new, cata_list, site_navigation, genindex
 def build_blogs(config):
     topn = config.get('n_blogs_to_show') or 5
     cata_list = []
-    site_navigation = nav.SiteNavigation(config)
+    site_navigation = nav.SiteNavigation(config['pages'])
 
     n_newest_path = newest_blogs = recursive_scan('.', config, 
             topn, cata_list, site_navigation, genindex=False)
     #write index.md and cata.md, since they are just [0] and [1] in the list, we
     #just need to do this
-    print(config['pages'])
     parser.write_catalog(config, cata_list)
     parser.write_top_index(config, n_newest_path)
 
@@ -262,5 +261,4 @@ if __name__ == "__main__":
     config = config.load_config('tests/test_conf.yml')
     #print(config['pages'])
     #so basically you need add a '/' to urls, 
-    build_blogs(config)
-    build_pages(config)
+    build(config)
