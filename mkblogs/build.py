@@ -39,13 +39,11 @@ BLANK_BLOG_CONTEXT = {
         'next_page': None
         }
 
-def get_blog_context(config, title, html, toc, meta):
+def get_blog_context(config, html, toc, meta):
     """
     update a blogs' page context
     """
     return {
-            'page_title': title,
-            #no description for a blog
 
             #there is no next page and previous page for blo
             'content' : html,
@@ -93,19 +91,16 @@ def _build_blog(path, config, scan_context):
     #okay, there is a hack here, we pase a externsion struct in, when we
     #return, there will be md struct there. we can get what we want from md.
     extens = config['markdown_extensions']
-    extens.append(TitleExtension())
 
-    html_content, toc, meta, md = parser.convert_markdown(
+    html_content, toc, meta = parser.convert_markdown(
         input_content, #without site_navigation
-        extensions=extens, strict=config['strict'], wantmd=True
+        extensions=extens, strict=config['strict'], wantmd=False
     )
-    title = getattr(md, 'doc_title', '')
-    del md
 
     #if we want to parallize, we have to acquire a lock for global_context
     context = scan_context.global_context
     context.update(BLANK_BLOG_CONTEXT)
-    context.update(get_blog_context(config, title, html_content, toc, meta))
+    context.update(get_blog_context(config, html_content, toc, meta))
 
     # Allow 'template:' override in md source files.
     if 'template' in meta:
@@ -120,7 +115,6 @@ def _build_blog(path, config, scan_context):
     with open(output_path, 'w') as f:
         f.write(final_content.encode('utf8'))
         f.close()
-    return None #return title
 
 def read_ignore(ignored_file):
     ignored_list = []
@@ -157,6 +151,7 @@ def recursive_scan(this_dir, config, n_new, cata_list, site_navigation, genindex
     newest_paths = []
     local_paths = []
     dot_ignore = '.ignore'
+    new_blogs = 0
     #globally ignore pages
 
     paths = os.listdir(real_dir)
@@ -176,13 +171,17 @@ def recursive_scan(this_dir, config, n_new, cata_list, site_navigation, genindex
         if utils.is_page(doc_path, config['pages']):
             continue
 
-        if utils.is_markdown_file(_doc_path) and utils.is_newmd(_doc_path):
-#XXX: build page when it is new
-            title = _build_blog(doc_path, config, scan_context)   
+#TODO: if any of documents changed, index should be changed as well. In other
+#words, local index.md relies on local blogs.md. But solving title problem is
+#hard.
+        if utils.is_markdown_file(_doc_path):
             addtime = os.path.getatime(_doc_path)
-
-            local_paths.append((title, f, addtime))
+            local_paths.append((doc_path, addtime))
             newest_paths.append((doc_path, addtime))
+            if utils.is_newmd(_doc_path):
+#XXX: build a blog when it is new
+                _build_blog(doc_path, config, scan_context)   
+                new_blogs += 1
 
         elif os.path.isdir(_doc_path):
             sub_newest_paths = recursive_scan(doc_path, config, n_new,
@@ -192,18 +191,18 @@ def recursive_scan(this_dir, config, n_new, cata_list, site_navigation, genindex
         else:
             continue
 
-        #now, we should generate a index.md for this dir
-        #if this dir contains no markdowns, we don't generate index for it.
-    if genindex == True and len(newest_paths) > 0:
-        index_path = os.path.join(this_dir, 'index.md')
-        index_title = parser.write_index(index_path, local_paths, config)
-        _build_blog(index_path, config, scan_context)
-#XXX: add to cata_list
+    if genindex == True: 
+        index_title = parser.get_index_title(this_dir)
         cata_list.append((index_title, this_dir))
+
+        if new_blogs > 0:
+            index_path = os.path.join(this_dir, 'index.md')
+            parser.write_index(index_path, local_paths, config, index_title)
+            _build_blog(index_path, config, scan_context)
+
 
     #XXX: restore context
     return add_top_n(newest_paths, [], n_new)
-
 
 
 
@@ -232,11 +231,12 @@ def build(config, live_server=False, clean_site_dir=False):
             print("Directory %s contains stale files. Use --clean to remove them." % config['site_dir'])
 
 
-    log.debug("Building markdown pages.")
 
     #switch the build sequence, so that we can build catalist and index along
     #with pages
+    log.debug("Building blogs.")
     build_blogs(config)
+    log.debug("Building markdown pages.")
     build_pages(config)
 
     # NOW move compiled blogs along with themes to site dir

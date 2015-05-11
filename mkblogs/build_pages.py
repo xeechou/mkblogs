@@ -106,7 +106,8 @@ def get_page_context(page, content, toc, meta, config):
         'page_description': page_description,
 
         'content': content,
-        'toc': toc,
+        #'toc' : toc,
+        'toc': None,
         'meta': meta,
 
 

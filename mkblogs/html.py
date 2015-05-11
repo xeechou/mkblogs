@@ -49,6 +49,29 @@ def get_located_path(file_path):
     """
     return os.path.basename(os.path.dirname(file_path))
 
+def get_blog_title(config, path):
+    """
+    This is the best we can do to get blogs title. Since we cannot rely on
+    anything else
+    """
+    title = ""
+    print path
+    with open(os.path.join(config['docs_dir'], path)) as f:
+        for line in f:
+            if line.startswith('#'):
+                title = line[1:]
+        f.close()
+
+    return title
+
+def get_index_title(dirpath):
+    name = os.path.basename(dirpath)
+    if name:
+        return name
+    else:
+        return 'Index'
+    
+
 def write_index(path, indices, config, title=None):
     """
     write @indices to @path, generate title if not provided
@@ -61,13 +84,15 @@ def write_index(path, indices, config, title=None):
             title = nav.filename_to_title(dirname)
         else:
             title = 'Index'
+
     #sort indices
-    sorted_inds = sorted(indices, key=operator.itemgetter(2))
+    sorted_inds = sorted(indices, key=operator.itemgetter(1))
     with open(os.path.join(config['docs_dir'], path), 'w') as f:
         f.write("#{}\n".format(title))
         f.write("\n")
-        for (name, blog_path, build_time) in sorted_inds:
-            f.write("*  [{0}]({1})\n".format(name, blog_path))
+        for (blog_path, build_time) in sorted_inds:
+            name = get_blog_title(config, blog_path)
+            f.write("*  [{0}]({1})\n".format(name, os.path.basename(blog_path)))
         f.close()
     return title
 
@@ -85,7 +110,7 @@ def write_catalog(config, catalist):
         for (name, index_path) in catalist:
             if not name:
                 name = nav.filename_to_title(index_path)
-            f.write("*  [{0}]({1})\n".format(name, cata_path))
+            f.write("*  [{0}]({1})\n".format(name, index_path))
         f.close()
 
 
@@ -183,7 +208,6 @@ def write_top_index(config, newest_path):
         index_content.append(index_generator.get_heads(i[0], 20))
 
     index_content = index_generator.merge_htmls(index_content)
-    print(index_content)
 
     with open(os.path.join(config['docs_dir'], 'index.md'), 'w') as f:
         f.write(index_content)
