@@ -58,8 +58,9 @@ def get_blog_title(config, path):
     print path
     with open(os.path.join(config['docs_dir'], path)) as f:
         for line in f:
-            if line.startswith('#'):
+            if line.startswith('#') and line[2] != '#':
                 title = line[1:]
+                break
         f.close()
 
     return title
@@ -188,9 +189,11 @@ class ContentParser:
 		
 	    element.attrib[key] = to_replace
 
+        readmore = utils.get_html_path(md_path)
         #TODO: add a readmore in the text
 	return ContentParser.__remove__html_tag(\
-			etree.tostring(tree, encoding='utf-8'))
+			etree.tostring(tree, encoding='utf-8')) +\
+                "\n[Read More]({})\n".format(readmore)
     @staticmethod
     def __remove__html_tag(string):
 	""" remove the <html> </html> tags at head and tail """
