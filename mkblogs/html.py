@@ -193,7 +193,7 @@ class ContentParser:
         #TODO: add a readmore in the text
 	return ContentParser.__remove__html_tag(\
 			etree.tostring(tree, encoding='utf-8')) +\
-                "\n[Read More]({})\n".format(readmore)
+                    "\n[Read More]({})\n".format(readmore)
     @staticmethod
     def __remove__html_tag(string):
 	""" remove the <html> </html> tags at head and tail """
