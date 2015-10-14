@@ -16,6 +16,8 @@ import markdown
 import os
 import logging
 import operator
+import threading
+from multiprocessing import cpu_count as num_of_thread
 
 from mkblogs.build_pages import *
 
@@ -70,51 +72,6 @@ class ScanContext:
         self.site_navigation.update_path(dummpy_page)
         self.global_context = get_global_context(self.site_navigation, config)
 
-def _build_blog(path, config, scan_context):
-    """
-    convert a blog from @input_path to @output_path html, this func differ from
-    _build_page where it use a page struct.
-    """
-    input_path = os.path.join(config['docs_dir'], path)
-    try:
-        input_content = open(input_path, 'r').read()
-    except IOError:
-        log.error('file not found: %s', input_path)
-        return
-
-    if PY2:
-        input_content = input_content.decode('utf-8')
-
-    # Process the markdown text
-
-    #TODO: we need a different convert_markdown coz:
-    #okay, there is a hack here, we pase a externsion struct in, when we
-    #return, there will be md struct there. we can get what we want from md.
-    extens = config['markdown_extensions']
-
-    html_content, toc, meta = parser.convert_markdown(
-        input_content, #without site_navigation
-        extensions=extens, strict=config['strict'], wantmd=False
-    )
-
-    #if we want to parallize, we have to acquire a lock for global_context
-    context = scan_context.global_context
-    context.update(BLANK_BLOG_CONTEXT)
-    context.update(get_blog_context(config, html_content, toc, meta))
-
-    # Allow 'template:' override in md source files.
-    if 'template' in meta:
-        template = scan_context.env.get_template(meta['template'][0])
-    else:
-        template = scan_context.env.get_template('base.html')
-
-    # Render the template.
-    final_content =  template.render(context)
-    #just write right in the directory
-    output_path = os.path.splitext(input_path)[0] + '.html'
-    with open(output_path, 'w') as f:
-        f.write(final_content.encode('utf8'))
-        f.close()
 
 def read_ignore(ignored_file):
     ignored_list = []
@@ -134,84 +91,176 @@ def add_top_n(newest_paths, to_add, n):
     return sorted(newest_paths, key=operator.itemgetter(1), \
             reverse=True)[:n]
 
-def recursive_scan(this_dir, config, n_new, cata_list, site_navigation, genindex=True):
+class BlogsGen(object):
     """
-    @this_dir starts inside docs, so you will never see 'docs/' in it. 
-    @real_dir is @this_dir with a prefix, so we can list files done here
-    @we use a @doc_path to indicate a logic log path, use @_doc_path to
-    represent true path.
-
-    also, we record the newest N blogs
-    we use one single global_context to represent all files in the same dir
+    BlogsGenerator provides all the context for compile every blog,
+    it will also generate tags pages.
     """
-    real_dir = os.path.join(config['docs_dir'], this_dir)
-    scan_context = ScanContext(config, this_dir, site_navigation)
+    class UpdateList(object):
+        def __init__(self, toupdate = None):
+            self.lock = threading.Lock()
+            self.updatelist = toupdate if toupdate != None else []
 
-    global omit_path
-    newest_paths = []
-    local_paths = []
+        def get_to_build(self):
+            self.lock.acquire()
+            output = self.updatelist.pop() if self.updatelist else None
+            self.lock.release()
+            return output
+
+        def done_build(self, update):
+            self.lock.acquire()
+            self.updatelist.append(update)
+            self.lock.release()
+
+    class BlogBuilder(threading.Thread):
+        """
+        A very thing layer of Thread object in so we can build object
+        simoultaneously
+        """
+        def __init__(self, Context):
+            threading.Thread.__init__(self)
+            self.context = Context
+
+        def run(self):
+            while True:
+                output = self.Context.get_to_build()
+                if not ouput:
+                    break
+                self.Context.build_blog(output)
+
+
+    def __init__(self, config, tobuild):
+        self.toupdate = UpdateList(tobuild)
+        self.updated  = UpdateList()
+        self.config = config
+        #TODO: fix the line below
+        self.scan_context = ScanContext(config['docs_dir'])
+
+        try:
+            nthread = num_of_thread()
+        except NotImplementedError:
+            nthread = 4
+        self.workers = []
+        for i in [0:nthread]:
+            self.workers.append(BlogBuilder(self))
+
+    def start(self):
+        for t in self.workers:
+            t.start()
+        for t in self.workers:
+            t.join()
+        #build something else
+
+    def get_to_build(self):
+        return self.toupdate.get_to_build()
+    def done_build(self):
+        self.updated.done_build()
+
+    def build_blog(self, path):
+        self._build_blog(path, self.config, scan_context)
+
+    def _build_blog(self, path, config, scan_context):
+        """
+        convert a blog from @input_path to @output_path html, this function
+        differs from _build_page where it use a page struct.
+        """
+        input_path = os.path.join(config['docs_dir'], path)
+        try:
+            input_content = open(input_path, 'r').read()
+        except IOError:
+            log.error('file not found: %s', input_path)
+            return
+
+        if PY2:
+            input_content = input_content.decode('utf-8')
+
+        # Process the markdown text
+
+        #TODO: we need a different convert_markdown coz:
+        #okay, there is a hack here, we pase a externsion struct in, when we
+        #return, there will be md struct there. we can get what we want from md.
+        extens = config['markdown_extensions']
+
+        html_content, toc, meta = parser.convert_markdown(
+            input_content, #without site_navigation
+            extensions=extens, strict=config['strict'], wantmd=False
+        )
+
+        #if we want to parallize, we have to acquire a lock for global_context
+        context = scan_context.global_context
+        context.update(BLANK_BLOG_CONTEXT)
+        context.update(get_blog_context(config, html_content, toc, meta))
+
+        # Allow 'template:' override in md source files.
+        if 'template' in meta:
+            template = scan_context.env.get_template(meta['template'][0])
+        else:
+            template = scan_context.env.get_template('base.html')
+
+        # Render the template.
+        final_content =  template.render(context)
+        #just write right in the directory
+        output_path = os.path.splitext(input_path)[0] + '.html'
+        with open(output_path, 'w') as f:
+            f.write(final_content.encode('utf8'))
+            f.close()
+
+
+def get_toupdate(directory):
     dot_ignore = '.ignore'
-    new_blogs = 0
-    #globally ignore pages
+    ignored_files = read_ignore(os.path.join(directory,\
+        dot_ignore)).append(dot_ignore)
 
-    paths = os.listdir(real_dir)
-    ignored_files = read_ignore(os.path.join(real_dir, dot_ignore))
-    for f in paths:
-        doc_path  = os.path.join(this_dir, f)
-        _doc_path = os.path.join(real_dir, f)
+    markdown_list = {}
+    html_list = {}
+    toupdate = []
+    for f in os.listdir(directory):
+        f_abs = os.path.join(directory, f)
 
-        #locally ignored
         if f == dot_ignore:
             continue
         if f in ignored_files:
             continue
-        if f in omit_path:
+        if utils.is_page(config['pages']):
             continue
-        #globally ingored
-        if utils.is_page(doc_path, config['pages']):
-            continue
-
-#TODO: if any of documents changed, index should be changed as well. In other
-#words, local index.md relies on local blogs.md. But solving title problem is
-#hard.
-        if utils.is_markdown_file(_doc_path):
-            addtime = os.path.getatime(_doc_path)
-            local_paths.append((doc_path, addtime))
-            newest_paths.append((doc_path, addtime))
-            if utils.is_newmd(_doc_path):
-#XXX: build a blog when it is new
-                _build_blog(doc_path, config, scan_context)   
-                new_blogs += 1
-
-        elif os.path.isdir(_doc_path):
-            sub_newest_paths = recursive_scan(doc_path, config, n_new,
-                    cata_list, site_navigation)
-#XXX: update top N pages
-            newest_paths = add_top_n(newest_paths, sub_newest_paths, n_new)
-        else:
+        if utils.is_markdown_file(f):
+            markdown_list[f] = os.path.getmtime(f_abs)
+        #XXX: this could be images, assets or something
+        if utils.is_html_file(f):       #we dont care what the generated html extension is
+            html_list[os.path.splitext(f)[0]] = os.path.getmtime(f_abs)
+        if os.path.isdir(f_abs):
             continue
 
-    if genindex == True: 
-        index_title = parser.get_index_title(this_dir)
-        cata_list.append((index_title, this_dir))
-
-        if new_blogs > 0:
-            index_path = os.path.join(this_dir, 'index.md')
-            parser.write_index(index_path, local_paths, config, index_title)
-            _build_blog(index_path, config, scan_context)
-
-
-    #XXX: restore context
-    return add_top_n(newest_paths, [], n_new)
-
-
+    for key in markdown_list.keys():
+        name = os.path.splitext(key)[0]
+        mtime = markdown_list[key]
+        if not html_list.get(name):
+            toupdate.append(key)
+        elif html_list.get(name) < mtime:
+            toupdate.append(key)
+        else: #html_list.get(name) >= mtime
+            continue
+    #del markdown_list
+    #del html_list
+    return toupdate
 
 def build_blogs(config):
     topn = config.get('n_blogs_to_show') or 5
+    #if I have record for previous blogs, I will be so happy
+    dot_record = config.get('dot_record') or '.record'
+    blog_record = []
+    if os.isfile(os.path.join(config['docs_dir'],dot_record)):
+        f = open(os.path.join(config['docs_dir'],dot_record))
+        blog_record = json.loads(f.read())
+        f.close()
+    toupdate = get_toupdate(config['docs_dir'])
+    #what I need to do now is get a builder that are generic enough
+
     cata_list = []
     site_navigation = nav.SiteNavigation(config['pages'])
 
-    n_newest_path = newest_blogs = recursive_scan('.', config, 
+
+    n_newest_path = newest_blogs = recursive_scan('.', config,
             topn, cata_list, site_navigation, genindex=False)
     #write index.md and cata.md, since they are just [0] and [1] in the list, we
     #just need to do this
