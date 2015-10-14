@@ -53,24 +53,6 @@ def get_blog_context(config, html, toc, meta):
             'meta' : meta
             }
 
-class ScanContext:
-    def __init__(self, config, dir_path, site_navigation):
-        """same for all blogs"""
-        self.site_navigation = site_navigation
-        loader = jinja2.FileSystemLoader(config['theme_dir'])
-        self.env = jinja2.Environment(loader=loader)
-        """end: same for all blogs"""
-
-        """
-        since all files in the same dir all share the have same reference to
-        media files, we just use a dummpy path to handle it.
-        """
-        dummpy = os.path.join(dir_path, 'dummpy')
-        dummpy_page = nav.Page(None, url=utils.get_url_path(dummpy),
-                path=dummpy, url_context=nav.URLContext())
-
-        self.site_navigation.update_path(dummpy_page)
-        self.global_context = get_global_context(self.site_navigation, config)
 
 
 def read_ignore(ignored_file):
@@ -117,49 +99,61 @@ class BlogsGen(object):
         A very thing layer of Thread object in so we can build object
         simoultaneously
         """
-        def __init__(self, Context):
+        def __init__(self, Context, tid):
             threading.Thread.__init__(self)
             self.context = Context
+            self.tid = tid          #thread id
 
         def run(self):
             while True:
-                output = self.Context.get_to_build()
+                blog_path = self.Context.get_to_build()
                 if not ouput:
                     break
-                self.Context.build_blog(output)
-
+                self.Context.build_blog(blog_path, self.tid)
 
     def __init__(self, config, tobuild):
         self.toupdate = UpdateList(tobuild)
         self.updated  = UpdateList()
         self.config = config
-        #TODO: fix the line below
-        self.scan_context = ScanContext(config['docs_dir'])
 
+        #XXX: step 1 setup n threads
         try:
             nthread = num_of_thread()
         except NotImplementedError:
             nthread = 4
         self.workers = []
-        for i in [0:nthread]:
-            self.workers.append(BlogBuilder(self))
+        for i in range(nthread):
+            self.workers.append(BlogBuilder(self, i))
+
+        #XXX: step 2 generate context for building blogs
+        self.site_navigation = nav.SiteNavigation(config['pages'])
+        loader = jinja2.FileSystemLoader(config['theme_dir'])
+        self.env = jinja2.Environment(loader=loader)
+
+        dummy = os.path.join(config['docs_dir'], 'dummy')
+        dummy_page = nav.Page(None, url=utils.get_url_path(dummy),
+                path=dummy, url_context = nav.URLContext())
+        self.site_navigation.update_path(dummy_page)
+        #now we have context for every core
+        for i in range(nthread):
+            self.global_context[i] = get_global_context(self.site_navigation, config)
 
     def start(self):
         for t in self.workers:
             t.start()
         for t in self.workers:
             t.join()
-        #build something else
+        #build catalogs and something else
 
     def get_to_build(self):
         return self.toupdate.get_to_build()
     def done_build(self):
         self.updated.done_build()
 
-    def build_blog(self, path):
-        self._build_blog(path, self.config, scan_context)
+    def build_blog(self, path, tid):
+        self._build_blog(path, self.config, tid)
 
-    def _build_blog(self, path, config, scan_context):
+    def _build_blog(self, path, config, tid):
         """
         convert a blog from @input_path to @output_path html, this function
         differs from _build_page where it use a page struct.
@@ -186,16 +180,15 @@ class BlogsGen(object):
             extensions=extens, strict=config['strict'], wantmd=False
         )
 
-        #if we want to parallize, we have to acquire a lock for global_context
-        context = scan_context.global_context
+        context = self.global_context[tid]  #each thread has its our context
         context.update(BLANK_BLOG_CONTEXT)
         context.update(get_blog_context(config, html_content, toc, meta))
 
         # Allow 'template:' override in md source files.
         if 'template' in meta:
-            template = scan_context.env.get_template(meta['template'][0])
+            template = self.env.get_template(meta['template'][0])
         else:
-            template = scan_context.env.get_template('base.html')
+            template = self.env.get_template('base.html')
 
         # Render the template.
         final_content =  template.render(context)
@@ -209,7 +202,8 @@ class BlogsGen(object):
 def get_toupdate(directory):
     dot_ignore = '.ignore'
     ignored_files = read_ignore(os.path.join(directory,\
-        dot_ignore)).append(dot_ignore)
+        dot_ignore))
+    ignored_files.append(dot_ignore)
 
     markdown_list = {}
     html_list = {}
@@ -249,7 +243,7 @@ def build_blogs(config):
     #if I have record for previous blogs, I will be so happy
     dot_record = config.get('dot_record') or '.record'
     blog_record = []
-    if os.isfile(os.path.join(config['docs_dir'],dot_record)):
+    if os.path.isfile(os.path.join(config['docs_dir'],dot_record)):
         f = open(os.path.join(config['docs_dir'],dot_record))
         blog_record = json.loads(f.read())
         f.close()
@@ -306,8 +300,9 @@ if __name__ == "__main__":
     logger = logging.getLogger('mkblogs')
     logger.addHandler(logging.StreamHandler())
     logger.setLevel(logging.DEBUG)
-
-    config = config.load_config('tests/test_conf.yml')
-    #print(config['pages'])
-    #so basically you need add a '/' to urls, 
+    #change dir
+    os.chdir('sampleblog')
+    config = config.load_config('mkblogs.yml')
+    print(config['pages'])
+    #so basically you need add a '/' to urls,
     build(config)
