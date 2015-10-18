@@ -36,7 +36,7 @@ BLANK_BLOG_CONTEXT = {
 
         'canonical_url': None,
 
-        'current_page': None, #maybe I should use home?
+        'current_page': None,   #remove this!!!!
         'previous_page': None,
         'next_page': None
         }
@@ -46,13 +46,11 @@ def get_blog_context(config, html, toc, meta):
     update a blogs' page context
     """
     return {
-
             #there is no next page and previous page for blo
             'content' : html,
             'toc' : toc,
             'meta' : meta
             }
-
 
 
 def read_ignore(ignored_file):
@@ -83,13 +81,13 @@ class BlogsGen(object):
             self.lock = threading.Lock()
             self.updatelist = toupdate if toupdate != None else []
 
-        def get_to_build(self):
+        def pop(self):
             self.lock.acquire()
             output = self.updatelist.pop() if self.updatelist else None
             self.lock.release()
             return output
 
-        def done_build(self, update):
+        def push(self, update):
             self.lock.acquire()
             self.updatelist.append(update)
             self.lock.release()
@@ -106,14 +104,15 @@ class BlogsGen(object):
 
         def run(self):
             while True:
-                blog_path = self.Context.get_to_build()
-                if not ouput:
+                blog_path = self.context.get_work()
+                if not blog_path:
                     break
-                self.Context.build_blog(blog_path, self.tid)
+                #TODO: we should have something in return
+                attrs = self.context.build_blog(blog_path, self.tid)
 
     def __init__(self, config, tobuild):
-        self.toupdate = UpdateList(tobuild)
-        self.updated  = UpdateList()
+        self.toupdate = self.UpdateList(tobuild)
+        self.updated  = self.UpdateList()
         self.config = config
 
         #XXX: step 1 setup n threads
@@ -123,7 +122,7 @@ class BlogsGen(object):
             nthread = 4
         self.workers = []
         for i in range(nthread):
-            self.workers.append(BlogBuilder(self, i))
+            self.workers.append(self.BlogBuilder(self, i))
 
         #XXX: step 2 generate context for building blogs
         self.site_navigation = nav.SiteNavigation(config['pages'])
@@ -134,9 +133,12 @@ class BlogsGen(object):
         dummy_page = nav.Page(None, url=utils.get_url_path(dummy),
                 path=dummy, url_context = nav.URLContext())
         self.site_navigation.update_path(dummy_page)
-        #now we have context for every core
+
+        #XXX: step 3. we have different context for every worker, so there will
+        #be no data conflict
+        self.global_context = []
         for i in range(nthread):
-            self.global_context[i] = get_global_context(self.site_navigation, config)
+            self.global_context.append(get_global_context(self.site_navigation, config))
 
     def start(self):
         for t in self.workers:
@@ -145,18 +147,21 @@ class BlogsGen(object):
             t.join()
         #build catalogs and something else
 
-    def get_to_build(self):
-        return self.toupdate.get_to_build()
-    def done_build(self):
+    def get_work(self):
+        return self.toupdate.pop()
+    def done_work(self):
         self.updated.done_build()
 
     def build_blog(self, path, tid):
-        self._build_blog(path, self.config, tid)
+        wanted_attrs = ['meta']
+        unwanted_attrs = ['toc']
+        return self._build_blog(path, self.config, tid,
+                wanted_attrs, unwanted_attrs)
 
-    def _build_blog(self, path, config, tid):
+    def _build_blog(self, path, config, tid,
+            wanted_attrs=[], unwanted_attrs=[]):
         """
-        convert a blog from @input_path to @output_path html, this function
-        differs from _build_page where it use a page struct.
+        A generic _build_blog method, users can edit attribute themselves
         """
         input_path = os.path.join(config['docs_dir'], path)
         try:
@@ -167,8 +172,6 @@ class BlogsGen(object):
 
         if PY2:
             input_content = input_content.decode('utf-8')
-
-        # Process the markdown text
 
         #TODO: we need a different convert_markdown coz:
         #okay, there is a hack here, we pase a externsion struct in, when we
@@ -184,7 +187,17 @@ class BlogsGen(object):
         context.update(BLANK_BLOG_CONTEXT)
         context.update(get_blog_context(config, html_content, toc, meta))
 
-        # Allow 'template:' override in md source files.
+
+        #get what users wanted and remove want users dont wanted
+        output_attrs = {}
+        for i in wanted_attrs:
+            output_attrs[i] = context.get(i)
+        for i in unwanted_attrs:
+            if not context.get(i):
+                pass
+            context[i] = None
+
+        #Allow 'template:' override in md source files.
         if 'template' in meta:
             template = self.env.get_template(meta['template'][0])
         else:
@@ -198,8 +211,11 @@ class BlogsGen(object):
             f.write(final_content.encode('utf8'))
             f.close()
 
+        return output_attrs
+
 
 def get_toupdate(directory):
+    #TODO:in the future version, we will allowed tree directory, using BFS
     dot_ignore = '.ignore'
     ignored_files = read_ignore(os.path.join(directory,\
         dot_ignore))
@@ -215,7 +231,7 @@ def get_toupdate(directory):
             continue
         if f in ignored_files:
             continue
-        if utils.is_page(config['pages']):
+        if utils.is_page(f_abs, config['pages']):
             continue
         if utils.is_markdown_file(f):
             markdown_list[f] = os.path.getmtime(f_abs)
@@ -240,18 +256,24 @@ def get_toupdate(directory):
 
 def build_blogs(config):
     topn = config.get('n_blogs_to_show') or 5
+
     #if I have record for previous blogs, I will be so happy
     dot_record = config.get('dot_record') or '.record'
-    blog_record = []
+
+    #XXX:get blog record, you will need it for updating catalogs
+    blog_record = {}
     if os.path.isfile(os.path.join(config['docs_dir'],dot_record)):
         f = open(os.path.join(config['docs_dir'],dot_record))
         blog_record = json.loads(f.read())
         f.close()
-    toupdate = get_toupdate(config['docs_dir'])
-    #what I need to do now is get a builder that are generic enough
 
+    toupdate = get_toupdate(config['docs_dir'])
+    compiler = BlogsGen(config, toupdate)
+    print("Start debugging")
+    #after building the blog, we can update the blog_record now
+    compiler.start()
+    print("End debugging")
     cata_list = []
-    site_navigation = nav.SiteNavigation(config['pages'])
 
 
     n_newest_path = newest_blogs = recursive_scan('.', config,
