@@ -116,6 +116,7 @@ def validate_config(user_config):
 
     # If not specified, then the 'pages' config simply are catalist and index.md
     pages = config['default pages']
+    config['pages'] = [] if not config['pages'] else config['pages']
     for page in config['pages']:
         if utils.is_homepage(page[0]):
             pages[0] = [page[0], page[1]]

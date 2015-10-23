@@ -77,22 +77,6 @@ class BlogsGen(object):
     BlogsGenerator provides all the context for compile every blog,
     it will also generate tags pages.
     """
-    class UpdateList(object):
-        def __init__(self, toupdate = None):
-            self.lock = threading.Lock()
-            self.updatelist = toupdate if toupdate != None else []
-
-        def pop(self):
-            self.lock.acquire()
-            output = self.updatelist.pop() if self.updatelist else None
-            self.lock.release()
-            return output
-
-        def push(self, update):
-            self.lock.acquire()
-            self.updatelist.append(update)
-            self.lock.release()
-
     class BlogBuilder(threading.Thread):
         """
         A very thing layer of Thread object in so we can build object
@@ -110,10 +94,11 @@ class BlogsGen(object):
                     break
                 #TODO: we should have something in return
                 attrs = self.context.build_blog(blog_path, self.tid)
+                self.context.done_work(blog_path, attrs)
 
     def __init__(self, config, tobuild):
-        self.toupdate = self.UpdateList(tobuild)
-        self.updated  = self.UpdateList()
+        self.toupdate = utils.AtomicList(tobuild)
+        self.updated  = utils.AtomicDict()
         self.config = config
 
         #XXX: step 1 setup n threads
@@ -150,8 +135,14 @@ class BlogsGen(object):
 
     def get_work(self):
         return self.toupdate.pop()
-    def done_work(self):
-        self.updated.done_build()
+    def done_work(self, blog_path, attrs):
+        #since for now, the only attrs is meta...
+        meta = attrs['meta']
+        info = []
+        info.append(meta['title'])
+        info.append(meta['data'])
+        info.append(meta['tags'])
+        self.updated.update(blog_path, info)
 
     def build_blog(self, path, tid):
         wanted_attrs = ['meta']
@@ -170,7 +161,6 @@ class BlogsGen(object):
         except IOError:
             log.error('file not found: %s', input_path)
             return
-
         if PY2:
             input_content = input_content.decode('utf-8')
 

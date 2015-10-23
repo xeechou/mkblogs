@@ -235,3 +235,38 @@ def create_relative_media_url(nav, url):
     #    relative_url = ".%s" % relative_url
 
     return relative_url
+
+#these are for exclusive access
+#XXX: maybe I should override python list and dict object?
+class AtomicList(object):
+    def __init__(self, toupdate = []):
+        self.lock = threading.Lock()
+        self.updatelist = toupdate
+
+    def pop(self):
+        self.lock.acquire()
+        output = self.updatelist.pop() if self.updatelist else None
+        self.lock.release()
+        return output
+
+    def push(self, update):
+        self.lock.acquire()
+        self.updatelist.append(update)
+        self.lock.release()
+
+class AtomicDict(object):
+    def __init__(self, toupdate = {}):
+        self.lock = threading.Lock()
+        self.updatedict = toupdate
+
+    def get(key):
+        self.lock.acquire()
+        val = self.updatedict.get(key)
+        self.lock.release()
+        return val
+    def update(key, val):
+        self.lock.acquire()
+        val = self.updatedict[key] = val
+        self.lock.release()
+    #you could provide __getitem__ __setitem__
+
