@@ -271,7 +271,9 @@ def build_blogs(config):
                 cata_list[tag] = [key]
             else:
                 cata_list[tag].append(key)
-    print(cata_list)
+    with open(os.path.join(config['docs_dir'],dot_record), 'w') as f:
+        f.write(json.dumps(blog_record, ensure_ascii=False).encode('utf8'))
+        f.close()
     #now we are done building all blogs, time to copy all html files to it.
 
     #write index.md and cata.md, since they are just [0] and [1] in the list, we
