@@ -11,6 +11,7 @@ import os
 import shutil
 
 from mkblogs.compat import urlparse
+import threading
 
 
 def copy_file(source_path, output_path):
@@ -238,35 +239,71 @@ def create_relative_media_url(nav, url):
 
 #these are for exclusive access
 #XXX: maybe I should override python list and dict object?
-class AtomicList(object):
-    def __init__(self, toupdate = []):
+class AtomicList(list):
+    def __init__(self, *args):
         self.lock = threading.Lock()
-        self.updatelist = toupdate
+        super(AtomicList, self).__init__(*args)
 
-    def pop(self):
+    def pop(self, ind=-1):
         self.lock.acquire()
-        output = self.updatelist.pop() if self.updatelist else None
+        output = None
+        if self:
+            output = super(AtomicList, self).pop(ind)
         self.lock.release()
         return output
-
-    def push(self, update):
+    #XXX: to be more rubust, you need try catch, but...
+    def __getitem__(self, key):
         self.lock.acquire()
-        self.updatelist.append(update)
+        output = super(AtomicList, self).__getitem__(key)
+        self.lock.release()
+        return output
+    def __setitem__(self, key, item):
+        self.lock.acquire()
+        super(AtomicList, self).__setitem__(key, item)
         self.lock.release()
 
-class AtomicDict(object):
-    def __init__(self, toupdate = {}):
-        self.lock = threading.Lock()
-        self.updatedict = toupdate
-
-    def get(key):
+    def append(self, val):
         self.lock.acquire()
-        val = self.updatedict.get(key)
+        super(AtomicList, self).append(val)
+        self.lock.release()
+
+class AtomicDict(dict):
+    def __init__(self, *args):
+        self.lock = threading.Lock()
+        super(AtomicDict, self).__init__(args)
+
+    def __getitem__(self, key):
+        self.lock.acquire()
+        val = super(AtomicDict, self).get(key)
         self.lock.release()
         return val
-    def update(key, val):
+
+    def __setitem__(self, key, val):
         self.lock.acquire()
-        val = self.updatedict[key] = val
+        val = super(AtomicDict, self).__setitem__(key, val)
         self.lock.release()
     #you could provide __getitem__ __setitem__
 
+#import random
+#class simple_thread(threading.Thread):
+#    def __init__(self, l):
+#        self.l = l
+#        threading.Thread.__init__(self)
+#    def run(self):
+#        while True:
+#            if self.l:
+#                self.l.pop()
+#            self.l.append(random.random())
+#
+#if __name__ == "__main__":
+#    a = AtomicList()
+#    if a:
+#        print(a)
+#    a.pop()
+#    threads = []
+#    for i in range(10):
+#        threads.append(simple_thread(a))
+#    for i in range(10):
+#        threads[i].start()
+#    for i in range(10):
+#        threads[i].join()

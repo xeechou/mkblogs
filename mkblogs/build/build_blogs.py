@@ -53,7 +53,6 @@ def get_blog_context(config, html, toc, meta):
             'meta' : meta
             }
 
-
 def read_ignore(ignored_file):
     ignored_list = []
     if not os.path.isfile(ignored_file):
@@ -114,7 +113,6 @@ class BlogsGen(object):
         self.site_navigation = nav.SiteNavigation(config['pages'])
         loader = jinja2.FileSystemLoader(config['theme_dir'])
         self.env = jinja2.Environment(loader=loader)
-
         dummy = os.path.join(config['docs_dir'], 'dummy')
         dummy_page = nav.Page(None, url=utils.get_url_path(dummy),
                 path=dummy, url_context = nav.URLContext())
@@ -139,10 +137,12 @@ class BlogsGen(object):
         #since for now, the only attrs is meta...
         meta = attrs['meta']
         info = []
-        info.append(meta['title'])
-        info.append(meta['data'])
-        info.append(meta['tags'])
-        self.updated.update(blog_path, info)
+        #because vals in meta is always dict, we get the first element
+        info.append((meta.get('title') or meta.get('Title'))[0])
+        info.append((meta.get('date')  or meta.get('Date'))[0])
+        #except tags, they needs to be include
+        info.append(meta.get('tags')  or meta.get('Tags'))
+        self.updated[blog_path] = info
 
     def build_blog(self, path, tid):
         wanted_attrs = ['meta']
@@ -164,9 +164,6 @@ class BlogsGen(object):
         if PY2:
             input_content = input_content.decode('utf-8')
 
-        #TODO: we need a different convert_markdown coz:
-        #okay, there is a hack here, we pase a externsion struct in, when we
-        #return, there will be md struct there. we can get what we want from md.
         extens = config['markdown_extensions']
 
         html_content, toc, meta = parser.convert_markdown(
@@ -177,7 +174,6 @@ class BlogsGen(object):
         context = self.global_context[tid]  #each thread has its our context
         context.update(BLANK_BLOG_CONTEXT)
         context.update(get_blog_context(config, html_content, toc, meta))
-
 
         #get what users wanted and remove want users dont wanted
         output_attrs = {}
@@ -226,7 +222,6 @@ def get_toupdate(directory, config):
             continue
         if utils.is_markdown_file(f):
             markdown_list[f] = os.path.getmtime(f_abs)
-        #XXX: this could be images, assets or something
         if utils.is_html_file(f):       #we dont care what the generated html extension is
             html_list[os.path.splitext(f)[0]] = os.path.getmtime(f_abs)
         if os.path.isdir(f_abs):
@@ -241,34 +236,44 @@ def get_toupdate(directory, config):
             toupdate.append(key)
         else: #html_list.get(name) >= mtime
             continue
-    #del markdown_list
-    #del html_list
+
     return toupdate
 
 def build_blogs(config):
     topn = config.get('n_blogs_to_show') or 5
-
-    #if I have record for previous blogs, I will be so happy
     dot_record = config.get('dot_record') or '.record'
 
-    #XXX:get blog record, you will need it for updating catalogs
+    #XXX:Step 1, get blog record, you will need it for updating catalogs
     blog_record = {}
     if os.path.isfile(os.path.join(config['docs_dir'],dot_record)):
         f = open(os.path.join(config['docs_dir'],dot_record))
         blog_record = json.loads(f.read())
         f.close()
 
+    #XXX: Step 2, build all the blogs
+    #FIXME: Fix this, if @blog_record is in anyway, missing something, the
+    #generated catalog is incompleted
     toupdate = get_toupdate(config['docs_dir'], config)
     compiler = BlogsGen(config, toupdate)
-    print("Start debugging")
-    #after building the blog, we can update the blog_record now
     compiler.start()
-    print("End debugging")
-    cata_list = []
 
+    #XXX: Step 3, merge compiler.updated with dot_record
+    for key in compiler.updated.keys():
+        blog_record[key] = compiler.updated[key]
+    #XXX: Step 4, generate catalogs with dot_record
+    cata_list = {'default':[]}
+    for key in blog_record.keys():
+        tags = (blog_record[key])[-1]
+        if not tags:
+            cata_list['default'].append(key)
+        for tag in tags:
+            if not cata_list.get(tag):
+                cata_list[tag] = [key]
+            else:
+                cata_list[tag].append(key)
+    print(cata_list)
+    #now we are done building all blogs, time to copy all html files to it.
 
-    n_newest_path = newest_blogs = recursive_scan('.', config,
-            topn, cata_list, site_navigation, genindex=False)
     #write index.md and cata.md, since they are just [0] and [1] in the list, we
     #just need to do this
     parser.write_catalog(config, cata_list)
@@ -285,7 +290,6 @@ def build(config, live_server=False, clean_site_dir=False):
         print("Building documentation to directory: %s" % config['site_dir'])
         if not clean_site_dir and site_directory_contains_stale_files(config['site_dir']):
             print("Directory %s contains stale files. Use --clean to remove them." % config['site_dir'])
-
 
     #switch the build sequence, so that we can build catalist and index along
     #with pages
@@ -313,8 +317,7 @@ if __name__ == "__main__":
     logger.addHandler(logging.StreamHandler())
     logger.setLevel(logging.DEBUG)
     #change dir
-    os.chdir('sampleblog')
+    os.chdir('../sampleblog')
     config = config.load_config('mkblogs.yml')
-    print(config['pages'])
     #so basically you need add a '/' to urls,
     build(config)

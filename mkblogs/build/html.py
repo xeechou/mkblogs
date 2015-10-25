@@ -1,6 +1,7 @@
 import os, operator
 from lxml import etree
-from mkblogs import utils, nav, toc
+from mkblogs import utils, toc
+from mkblogs.build import nav
 from mkblogs.relative_path_ext import RelativePathExtension
 import markdown
 import logging
@@ -87,7 +88,7 @@ def write_index(path, indices, config, title=None):
 
     #sort indices
     sorted_inds = sorted(indices, key=operator.itemgetter(1))
-    with open(os.path.join(config['docs_dir'], path), 'w') as f:
+    with open(os.path.join(path), 'w') as f:
         f.write("#{}\n".format(title))
         f.write("\n")
         for (blog_path, build_time) in sorted_inds:
@@ -105,7 +106,7 @@ def write_catalog(config, catalist):
     then it points to dirname.
     """
     cata_path = config['pages'][1][0]
-    path = os.path.join(config['docs_dir'], cata_path)
+    path = os.path.join(cata_path)
     with open(path, 'w') as f:
         for (name, index_path) in catalist:
             if not name:
