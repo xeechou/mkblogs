@@ -119,6 +119,28 @@ def get_page_context(page, content, toc, meta, config):
         'next_page': page.next_page,
     }
 
+def add_category(key):
+    return "+ Category: {0}\n".format(key.encode('utf8'))
+def add_cate_blog(blog, path):
+    return "\t + [{0}]({1})\n".format(blog.encode('utf8'), path.encode('utf8'))
+
+def build_catalog(config, catalist):
+    """
+    write the top catalog page for blogs according to catalist,
+    catalist is list of dirnames, in mkblogs's scenario, it will treat dirname as
+    actual file, and transfer to 'dirname/index.md', which points to exact
+    location of the index file. If using our senario, we will treat it as dir,
+    then it points to dirname.
+    """
+    cata_path = config['pages'][1][0]
+    path = os.path.join(cata_path)
+    with open(path, 'w') as f:
+        for key in catalist.keys():
+            f.write( add_category(key))
+            for (blog_name, blog_path) in catalist[key]:
+                blog_path = os.path.join(config['docs_dir'],blog_path)
+                f.write( add_cate_blog(blog_name, blog_path))
+        f.close()
 
 def build_404(config, env, site_navigation):
 

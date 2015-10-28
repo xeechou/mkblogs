@@ -71,7 +71,7 @@ def get_index_title(dirpath):
         return name
     else:
         return 'Index'
-    
+
 
 def write_index(path, indices, config, title=None):
     """
@@ -97,22 +97,6 @@ def write_index(path, indices, config, title=None):
         f.close()
     return title
 
-def write_catalog(config, catalist):
-    """
-    write the top catalog page for blogs according to catalist,
-    catalist is list of dirnames, in mkblogs's scenario, it will treat dirname as
-    actual file, and transfer to 'dirname/index.md', which points to exact
-    location of the index file. If using our senario, we will treat it as dir,
-    then it points to dirname.
-    """
-    cata_path = config['pages'][1][0]
-    path = os.path.join(cata_path)
-    with open(path, 'w') as f:
-        for (name, index_path) in catalist:
-            if not name:
-                name = nav.filename_to_title(index_path)
-            f.write("*  [{0}]({1})\n".format(name, index_path))
-        f.close()
 
 
 

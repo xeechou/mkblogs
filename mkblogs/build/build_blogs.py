@@ -20,7 +20,9 @@ import operator
 import threading
 from multiprocessing import cpu_count as num_of_thread
 
-from mkblogs.build.build_pages import *
+from mkblogs.build.build_pages import build_pages, get_global_context, \
+        site_directory_contains_stale_files,\
+        build_catalog
 
 log = logging.getLogger('mkblogs')
 omit_path = ['index.md', 'img']
@@ -41,35 +43,6 @@ BLANK_BLOG_CONTEXT = {
         'previous_page': None,
         'next_page': None
         }
-
-def get_blog_context(config, html, toc, meta):
-    """
-    update a blogs' page context
-    """
-    return {
-            #there is no next page and previous page for blo
-            'content' : html,
-            'toc' : toc,
-            'meta' : meta
-            }
-
-def read_ignore(ignored_file):
-    ignored_list = []
-    if not os.path.isfile(ignored_file):
-        pass
-    else:
-        with open(ignored_file) as f:
-            for line in f:
-                ignored_files.append(line)
-            f.close()
-    return ignored_list
-
-def add_top_n(newest_paths, to_add, n):
-    newest_paths.extend(to_add)
-    if not newest_paths:
-        return []
-    return sorted(newest_paths, key=operator.itemgetter(1), \
-            reverse=True)[:n]
 
 class BlogsGen(object):
     """
@@ -201,6 +174,36 @@ class BlogsGen(object):
         return output_attrs
 
 
+def get_blog_context(config, html, toc, meta):
+    """
+    update a blogs' page context
+    """
+    return {
+            #there is no next page and previous page for blo
+            'content' : html,
+            'toc' : toc,
+            'meta' : meta
+            }
+
+def read_ignore(ignored_file):
+    ignored_list = []
+    if not os.path.isfile(ignored_file):
+        pass
+    else:
+        with open(ignored_file) as f:
+            for line in f:
+                ignored_files.append(line)
+            f.close()
+    return ignored_list
+
+def add_top_n(newest_paths, to_add, n):
+    newest_paths.extend(to_add)
+    if not newest_paths:
+        return []
+    return sorted(newest_paths, key=operator.itemgetter(1), \
+            reverse=True)[:n]
+
+
 def get_toupdate(directory, config):
     #TODO:in the future version, we will allowed tree directory, using BFS
     dot_ignore = '.ignore'
@@ -268,18 +271,18 @@ def build_blogs(config):
             cata_list['default'].append(key)
         for tag in tags:
             if not cata_list.get(tag):
-                cata_list[tag] = [key]
+                cata_list[tag] = [(blog_record[key][0], key)]
             else:
-                cata_list[tag].append(key)
+                cata_list[tag].append((blog_record[key][0], key))
     with open(os.path.join(config['docs_dir'],dot_record), 'w') as f:
         f.write(json.dumps(blog_record, ensure_ascii=False).encode('utf8'))
         f.close()
-    #now we are done building all blogs, time to copy all html files to it.
 
     #write index.md and cata.md, since they are just [0] and [1] in the list, we
     #just need to do this
-    parser.write_catalog(config, cata_list)
+    build_catalog(config, cata_list)
     parser.write_top_index(config, n_newest_path)
+    #now we are done building all blogs, time to copy all html files to it.
 
 def build(config, live_server=False, clean_site_dir=False):
     """
