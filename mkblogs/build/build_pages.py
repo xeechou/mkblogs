@@ -142,6 +142,9 @@ def build_catalog(config, catalist):
                 f.write( add_cate_blog(blog_name, blog_path))
         f.close()
 
+def build_index(config, newblogs):
+    """I guess only markdown will not be enough, u need to learn jinja2"""
+
 def build_404(config, env, site_navigation):
 
     log.debug("Building 404.html page")

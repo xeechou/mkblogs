@@ -149,6 +149,7 @@ class BlogsGen(object):
         context.update(get_blog_context(config, html_content, toc, meta))
 
         #get what users wanted and remove want users dont wanted
+        #so in general, toc is removed
         output_attrs = {}
         for i in wanted_attrs:
             output_attrs[i] = context.get(i)
@@ -178,11 +179,13 @@ def get_blog_context(config, html, toc, meta):
     """
     update a blogs' page context
     """
+    title = (meta.get('title') or meta.get('Title'))[0]
     return {
             #there is no next page and previous page for blo
             'content' : html,
             'toc' : toc,
             'meta' : meta
+            'page_title' : title
             }
 
 def read_ignore(ignored_file):
@@ -261,8 +264,9 @@ def build_blogs(config):
     compiler.start()
 
     #XXX: Step 3, merge compiler.updated with dot_record
-    for key in compiler.updated.keys():
-        blog_record[key] = compiler.updated[key]
+    blog_record.update(compiler.updated)
+    #for key in compiler.updated.keys():
+    #    blog_record[key] = compiler.updated[key]
     #XXX: Step 4, generate catalogs with dot_record
     cata_list = {'default':[]}
     for key in blog_record.keys():
@@ -278,8 +282,6 @@ def build_blogs(config):
         f.write(json.dumps(blog_record, ensure_ascii=False).encode('utf8'))
         f.close()
 
-    #write index.md and cata.md, since they are just [0] and [1] in the list, we
-    #just need to do this
     build_catalog(config, cata_list)
     parser.write_top_index(config, n_newest_path)
     #now we are done building all blogs, time to copy all html files to it.
