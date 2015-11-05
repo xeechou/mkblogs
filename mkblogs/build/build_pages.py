@@ -120,7 +120,7 @@ def get_page_context(page, content, toc, meta, config):
     }
 
 def add_category(key):
-    return "### Category: {0}\n".format(key.encode('utf8'))
+    return "### Category-{0}\n".format(key.encode('utf8'))
 def add_cate_blog(blog, path):
     return "+ [{0}]({1})\n".format(blog.encode('utf8'), path.encode('utf8'))
 
