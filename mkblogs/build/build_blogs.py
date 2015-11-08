@@ -107,18 +107,16 @@ class BlogsGen(object):
     def get_work(self):
         return self.toupdate.pop()
     def done_work(self, blog_path, attrs):
-        #since for now, the only attrs is meta...
-        meta = attrs['meta']
         info = []
-        #because vals in meta is always dict, we get the first element
-        info.append((meta.get('title') or meta.get('Title'))[0])
-        info.append((meta.get('date')  or meta.get('Date'))[0])
+        #because vals in meta is always a list, we get the first element
+        info.append(attrs['title'])
+        info.append(attrs['date'] )
         #except tags, they needs to be include
-        info.append(meta.get('tags')  or meta.get('Tags'))
+        info.append(attrs['tags'] )
         self.updated[blog_path] = info
 
     def build_blog(self, path, tid):
-        wanted_attrs = ['meta']
+        wanted_attrs = ['date', 'title', 'tags']
         unwanted_attrs = ['toc']
         return self._build_blog(path, self.config, tid,
                 wanted_attrs, unwanted_attrs)
@@ -179,13 +177,25 @@ def get_blog_context(config, html, toc, meta):
     """
     update a blogs' page context
     """
-    title = (meta.get('title') or meta.get('Title'))[0]
+    try:
+        title = (meta.get('title') or meta.get('Title'))[0]
+    except:
+        raise NameError('Unamed blog')
+    try:
+        date = (meta.get('date') or meta.get('Date'))[0]
+        date = utils.parse_date(date)
+    except:
+        raise NameError('No time information on blog \'{}\''.format(title))
+    tags = meta.get('tags') or meta.get('Tags')
+
     return {
             #there is no next page and previous page for blo
             'content' : html,
             'toc' : toc,
-            'meta' : meta
-            'page_title' : title
+            'meta' : meta,
+            'page_title' : title,
+            'page_date' : date,
+            'page_tags' : tags
             }
 
 def read_ignore(ignored_file):
@@ -281,9 +291,8 @@ def build_blogs(config):
     with open(os.path.join(config['docs_dir'],dot_record), 'w') as f:
         f.write(json.dumps(blog_record, ensure_ascii=False).encode('utf8'))
         f.close()
-
     build_catalog(config, cata_list)
-    parser.write_top_index(config, n_newest_path)
+    build_index(config, blogs_on_index)
     #now we are done building all blogs, time to copy all html files to it.
 
 def build(config, live_server=False, clean_site_dir=False):
@@ -315,6 +324,9 @@ def build(config, live_server=False, clean_site_dir=False):
 
     log.debug("Copying static assets from the docs dir.")
     utils.copy_media_files(config['docs_dir'], config['site_dir'])
+
+
+
 
 
 
