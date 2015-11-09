@@ -9,9 +9,22 @@ and structure of the site and pages in the site.
 
 import os
 import shutil
+import operator
+import time
 
 from mkblogs.compat import urlparse
+from dateutil.parser import parse as _parse_date
+from datetime import datetime
 import threading
+
+def parse_date(date_string):
+    #FIXME: argument must 9 item sequence, not datetime datetime
+    return _parse_date(date_string).strftime("%d %b %Y")
+
+def sort_blogs(dic):
+    to_sort = [(x, time.mktime(_parse_date(dic[x][1]).timetuple()) ) for x in dic.keys()]
+    sorted_blogs = sorted(to_sort, key=operator.itemgetter(1))
+    return [x[0] for x in sorted_blogs]
 
 
 def copy_file(source_path, output_path):
@@ -199,6 +212,7 @@ def create_media_urls(nav, url_list):
 
 def create_relative_media_url(nav, url):
     """
+    This function should be dead, we don't use seperated dir for pages anymore
     For a current page, create a relative url based on the given URL.
 
     On index.md (which becomes /index.html):
@@ -284,6 +298,7 @@ class AtomicDict(dict):
         self.lock.release()
     #you could provide __getitem__ __setitem__
 
+
 #import random
 #class simple_thread(threading.Thread):
 #    def __init__(self, l):
@@ -307,3 +322,9 @@ class AtomicDict(dict):
 #        threads[i].start()
 #    for i in range(10):
 #        threads[i].join()
+if __name__ == "__main__":
+    import json
+    with open('sampleblog/docs/.record') as f:
+        jsonobj = json.loads(f.read())
+        f.close()
+    print()

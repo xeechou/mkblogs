@@ -64,7 +64,6 @@ class BlogsGen(object):
                 blog_path = self.context.get_work()
                 if not blog_path:
                     break
-                #TODO: we should have something in return
                 attrs = self.context.build_blog(blog_path, self.tid)
                 self.context.done_work(blog_path, attrs)
 
@@ -108,15 +107,13 @@ class BlogsGen(object):
         return self.toupdate.pop()
     def done_work(self, blog_path, attrs):
         info = []
-        #because vals in meta is always a list, we get the first element
-        info.append(attrs['title'])
-        info.append(attrs['date'] )
-        #except tags, they needs to be include
-        info.append(attrs['tags'] )
+        info.append(attrs['page_title'])
+        info.append(attrs['page_date'] )
+        info.append(attrs['page_tags'] )
         self.updated[blog_path] = info
 
     def build_blog(self, path, tid):
-        wanted_attrs = ['date', 'title', 'tags']
+        wanted_attrs = ['page_date', 'page_title', 'page_tags']
         unwanted_attrs = ['toc']
         return self._build_blog(path, self.config, tid,
                 wanted_attrs, unwanted_attrs)
@@ -183,9 +180,9 @@ def get_blog_context(config, html, toc, meta):
         raise NameError('Unamed blog')
     try:
         date = (meta.get('date') or meta.get('Date'))[0]
-        date = utils.parse_date(date)
     except:
-        raise NameError('No time information on blog \'{}\''.format(title))
+        raise NameError('No time information on blog \'{}\''.format(title.encode('utf8')))
+    date = utils.parse_date(date)
     tags = meta.get('tags') or meta.get('Tags')
 
     return {
@@ -208,13 +205,6 @@ def read_ignore(ignored_file):
                 ignored_files.append(line)
             f.close()
     return ignored_list
-
-def add_top_n(newest_paths, to_add, n):
-    newest_paths.extend(to_add)
-    if not newest_paths:
-        return []
-    return sorted(newest_paths, key=operator.itemgetter(1), \
-            reverse=True)[:n]
 
 
 def get_toupdate(directory, config):
@@ -275,14 +265,13 @@ def build_blogs(config):
 
     #XXX: Step 3, merge compiler.updated with dot_record
     blog_record.update(compiler.updated)
-    #for key in compiler.updated.keys():
-    #    blog_record[key] = compiler.updated[key]
     #XXX: Step 4, generate catalogs with dot_record
-    cata_list = {'default':[]}
+    cata_list = {'NO TAGS':[]}
     for key in blog_record.keys():
         tags = (blog_record[key])[-1]
         if not tags:
-            cata_list['default'].append(key)
+            cata_list['NO TAGS'].append(key)
+            continue
         for tag in tags:
             if not cata_list.get(tag):
                 cata_list[tag] = [(blog_record[key][0], key)]
@@ -291,6 +280,8 @@ def build_blogs(config):
     with open(os.path.join(config['docs_dir'],dot_record), 'w') as f:
         f.write(json.dumps(blog_record, ensure_ascii=False).encode('utf8'))
         f.close()
+    #TODO: decide which blog on index
+    blogs_on_index = utils.sort_blogs(blog_record)[:topn]
     build_catalog(config, cata_list)
     build_index(config, blogs_on_index)
     #now we are done building all blogs, time to copy all html files to it.
@@ -324,7 +315,6 @@ def build(config, live_server=False, clean_site_dir=False):
 
     log.debug("Copying static assets from the docs dir.")
     utils.copy_media_files(config['docs_dir'], config['site_dir'])
-
 
 
 
