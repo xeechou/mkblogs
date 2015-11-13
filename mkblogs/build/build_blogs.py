@@ -135,7 +135,7 @@ class BlogsGen(object):
         extens = config['markdown_extensions']
 
         html_content, toc, meta = parser.convert_markdown(
-            input_content, #without site_navigation
+            input_content,
             extensions=extens, strict=config['strict'], wantmd=False
         )
 
@@ -162,7 +162,7 @@ class BlogsGen(object):
         # Render the template.
         final_content =  template.render(context)
         #just write right in the directory
-        output_path = os.path.splitext(input_path)[0] + '.html'
+        output_path = utils.get_html_path(input_path)
         with open(output_path, 'w') as f:
             f.write(final_content.encode('utf8'))
             f.close()
@@ -176,14 +176,14 @@ def get_blog_context(config, html, toc, meta):
     """
     try:
         title = (meta.get('title') or meta.get('Title'))[0]
-    except:
-        raise NameError('Unamed blog')
-    try:
         date = (meta.get('date') or meta.get('Date'))[0]
     except:
-        raise NameError('No time information on blog \'{}\''.format(title.encode('utf8')))
+        raise NameError('Error in retrieving blogs meta')
+
     date = utils.parse_date(date)
     tags = meta.get('tags') or meta.get('Tags')
+    if not tags:
+        tags = ['TO TAGS']
 
     return {
             #there is no next page and previous page for blo
@@ -226,7 +226,7 @@ def get_toupdate(directory, config):
             continue
         if utils.is_page(f_abs, config['pages']):
             continue
-        if utils.is_markdown_file(f):
+        if utils.is_markdown_file(f):   #change is to is new_md
             markdown_list[f] = os.path.getmtime(f_abs)
         if utils.is_html_file(f):       #we dont care what the generated html extension is
             html_list[os.path.splitext(f)[0]] = os.path.getmtime(f_abs)
@@ -265,26 +265,28 @@ def build_blogs(config):
 
     #XXX: Step 3, merge compiler.updated with dot_record
     blog_record.update(compiler.updated)
-    #XXX: Step 4, generate catalogs with dot_record
-    cata_list = {'NO TAGS':[]}
-    for key in blog_record.keys():
-        tags = (blog_record[key])[-1]
-        if not tags:
-            cata_list['NO TAGS'].append(key)
-            continue
-        for tag in tags:
-            if not cata_list.get(tag):
-                cata_list[tag] = [(blog_record[key][0], key)]
-            else:
-                cata_list[tag].append((blog_record[key][0], key))
     with open(os.path.join(config['docs_dir'],dot_record), 'w') as f:
         f.write(json.dumps(blog_record, ensure_ascii=False).encode('utf8'))
         f.close()
+
+    #XXX: Step 4, generate catalogs with dot_record
+    cata_list = gen_catalist(blog_record)
     #TODO: decide which blog on index
     blogs_on_index = utils.sort_blogs(blog_record)[:topn]
     build_catalog(config, cata_list)
     build_index(config, blogs_on_index)
     #now we are done building all blogs, time to copy all html files to it.
+
+def gen_catalist(record):
+    cata_list = {}
+    for key in record.keys():
+        tags = (record[key])[-1]
+        for tag in tags:
+            if not cata_list.get(tag):
+                cata_list[tag] = [(record[key][0], key)]
+            else:
+                cata_list[tag].append((record[key][0], key))
+    return cata_list
 
 def build(config, live_server=False, clean_site_dir=False):
     """
@@ -315,7 +317,6 @@ def build(config, live_server=False, clean_site_dir=False):
 
     log.debug("Copying static assets from the docs dir.")
     utils.copy_media_files(config['docs_dir'], config['site_dir'])
-
 
 
 
