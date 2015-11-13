@@ -143,7 +143,9 @@ def build_catalog(config, catalist):
         f.close()
 
 def build_index(config, newblogs):
-    """I guess only markdown will not be enough, u need to learn jinja2"""
+    """simply generate a list of blogs for template to render, but we need to
+    make html and """
+    for blog in newblogs:
 
 def build_404(config, env, site_navigation):
 
@@ -161,7 +163,7 @@ def build_404(config, env, site_navigation):
     utils.write_file(output_content.encode('utf-8'), output_path)
 
 
-def _build_page(page, config, site_navigation, env, dump_json):
+def _build_page(page, config, site_navigation, env):
 
     # Read the input file
     input_path = os.path.join(config['docs_dir'], page.input_path)
@@ -189,6 +191,8 @@ def _build_page(page, config, site_navigation, env, dump_json):
     # Allow 'template:' override in md source files.
     if 'template' in meta:
         template = env.get_template(meta['template'][0])
+    elif site_navigation.page_template(page):
+        template = env.get_template(site_navigation.page_template(page))
     else:
         template = env.get_template('base.html')
 
@@ -197,20 +201,10 @@ def _build_page(page, config, site_navigation, env, dump_json):
 
     # Write the output file.
     output_path = os.path.join(config['docs_dir'], page.output_path)
-    if dump_json:
-        json_context = {
-            'content': context['content'],
-            'title': context['current_page'].title,
-            'url': context['current_page'].abs_url,
-            'language': 'en',
-        }
-        json_output = json.dumps(json_context, indent=4).encode('utf-8')
-        utils.write_file(json_output, output_path.replace('.html', '.json'))
-    else:
-        utils.write_file(output_content.encode('utf-8'), output_path)
+    utils.write_file(output_content.encode('utf-8'), output_path)
 
 
-def build_pages(config, dump_json=False):
+def build_pages(config):
     """
     Builds all the pages and writes them into the build directory.
     """
@@ -218,13 +212,20 @@ def build_pages(config, dump_json=False):
     loader = jinja2.FileSystemLoader(config['theme_dir'])
     env = jinja2.Environment(loader=loader)
 
+    #deal with
+    index = site_navigation.get_page('index.md')
+    index.set_builder(build_index, config['blogs_on_index'])
+    catalist = site_navigation.get_page('catalist.md')
+    catalist.set_builder(build_catalog, config['catalist'])
+
     build_404(config, env, site_navigation)
 
     for page in site_navigation.walk_pages():
-
         try:
             log.debug("Building page %s", page.input_path)
-            _build_page(page, config, site_navigation, env, dump_json)
+            if page.has_builder:
+                page.func(page.build_data)
+            _build_page(page, config, site_navigation, env)
         except:
             log.error("Error building page %s", page.input_path)
             raise

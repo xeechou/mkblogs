@@ -22,7 +22,7 @@ from multiprocessing import cpu_count as num_of_thread
 
 from mkblogs.build.build_pages import build_pages, get_global_context, \
         site_directory_contains_stale_files,\
-        build_catalog
+        build_catalog, build_index
 
 log = logging.getLogger('mkblogs')
 omit_path = ['index.md', 'img']
@@ -246,6 +246,9 @@ def get_toupdate(directory, config):
     return toupdate
 
 def build_blogs(config):
+    """
+    build blogs and generate enough information for build pages
+    """
     topn = config.get('n_blogs_to_show') or 5
     dot_record = config.get('dot_record') or '.record'
 
@@ -269,12 +272,12 @@ def build_blogs(config):
         f.write(json.dumps(blog_record, ensure_ascii=False).encode('utf8'))
         f.close()
 
-    #XXX: Step 4, generate catalogs with dot_record
-    cata_list = gen_catalist(blog_record)
-    #TODO: decide which blog on index
-    blogs_on_index = utils.sort_blogs(blog_record)[:topn]
-    build_catalog(config, cata_list)
-    build_index(config, blogs_on_index)
+    #XXX: Step 4, generate catalogs and index
+    config['cata_list'] = gen_catalist(blog_record)
+    config['blogs_on_index'] = utils.sort_blogs(blog_record)[:topn]
+
+    #build_catalog(config, cata_list)
+    #build_index(config, blogs_on_index)
     #now we are done building all blogs, time to copy all html files to it.
 
 def gen_catalist(record):
