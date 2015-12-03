@@ -48,6 +48,13 @@ class SiteNavigation(object):
         self.url_context.set_current_url(page.abs_url)
         self.file_context.set_current_path(page.input_path)
 
+    def get_page(self, name):
+        for page in self.pages:
+            if page.title == name:
+                return page
+        return None
+
+
     def walk_pages(self):
         """
         Returns each page in the site in turn.
@@ -173,11 +180,10 @@ class Page(object):
         for ancestor in self.ancestors:
             ancestor.active = active
 
-    def set_builder(self, build_func, data):
+    def set_builder(self, build_func):
         self.func = build_func
-        self.build_data = data
-    def has_builder(self):
-        return True if self.func else False
+    def get_builder(self):
+        return self.func
 
 class Header(object):
     def __init__(self, title, children):

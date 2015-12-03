@@ -273,7 +273,7 @@ def build_blogs(config):
         f.close()
 
     #XXX: Step 4, generate catalogs and index
-    config['cata_list'] = gen_catalist(blog_record)
+    config['catalist'] = gen_catalist(blog_record)
     config['blogs_on_index'] = utils.sort_blogs(blog_record)[:topn]
 
     #build_catalog(config, cata_list)

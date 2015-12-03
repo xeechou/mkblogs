@@ -124,7 +124,8 @@ def add_category(key):
 def add_cate_blog(blog, path):
     return "+ [{0}]({1})\n".format(blog.encode('utf8'), path.encode('utf8'))
 
-def build_catalog(config, catalist):
+def build_catalog(page, config, site_navigation, env):
+    catalist = config['catalist']
     """
     write the top catalog page for blogs according to catalist,
     catalist is list of dirnames, in mkblogs's scenario, it will treat dirname as
@@ -132,21 +133,21 @@ def build_catalog(config, catalist):
     location of the index file. If using our senario, we will treat it as dir,
     then it points to dirname.
     """
-    cata_path = config['pages'][1][0]
-    path = os.path.join(cata_path)
-    with open(path, 'w') as f:
+    #DEBUG:
+    input_path = page.input_path
+    with open(input_path, 'w') as f:
         for key in catalist.keys():
-            f.write( add_category(key))
+            f.write(add_category(key))
             for (blog_name, blog_path) in catalist[key]:
                 blog_path = os.path.join(config['docs_dir'],blog_path)
                 f.write( add_cate_blog(blog_name, blog_path))
         f.close()
+    _build_page(page, config, site_navigation, env)
 
-def build_index(config, newblogs):
+def build_index(page, config, site_navigation, env):
     """simply generate a list of blogs for template to render, but we need to
     make html and """
-    for blog in newblogs:
-        pass
+    newblogs = config['blogs_on_index']
 
 def build_404(config, env, site_navigation):
 
@@ -213,20 +214,18 @@ def build_pages(config):
     loader = jinja2.FileSystemLoader(config['theme_dir'])
     env = jinja2.Environment(loader=loader)
 
-    #deal with
-    index = site_navigation.get_page('index.md')
-    index.set_builder(build_index, config['blogs_on_index'])
-    catalist = site_navigation.get_page('catalist.md')
-    catalist.set_builder(build_catalog, config['catalist'])
-
+    index = site_navigation.get_page('Home')
+    index.set_builder(build_index)
+    catalist = site_navigation.get_page('Catalog')
+    catalist.set_builder(build_catalog)
+    print(config['blogs_on_index'])
     build_404(config, env, site_navigation)
 
     for page in site_navigation.walk_pages():
         try:
             log.debug("Building page %s", page.input_path)
-            if page.has_builder:
-                page.func(page.build_data)
-            _build_page(page, config, site_navigation, env)
+            build_page = page.get_builder() or _build_page
+            build_page(page, config, site_navigation, env)
         except:
             log.error("Error building page %s", page.input_path)
             raise
