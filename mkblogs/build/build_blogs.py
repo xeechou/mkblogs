@@ -278,8 +278,6 @@ def build_blogs(config):
         f.write(json.dumps(blog_record, ensure_ascii=False).encode('utf8'))
         f.close()
 
-    #write index.md and cata.md, since they are just [0] and [1] in the list, we
-    #just need to do this
     build_catalog(config, cata_list)
     parser.write_top_index(config, n_newest_path)
     #now we are done building all blogs, time to copy all html files to it.
