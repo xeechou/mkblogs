@@ -71,6 +71,8 @@ class SiteNavigation(object):
         if not hasattr(self, '_source_files'):
             self._source_files = set([page.input_path for page in self.pages])
         return self._source_files
+    def page_template(self, page):
+        return None
 
 
 class URLContext(object):
@@ -138,6 +140,7 @@ class Page(object):
         self.abs_url = url
         self.active = False
         self.url_context = url_context
+        self.func = None
 
         # Relative paths to the input markdown file and output html file.
         self.input_path = path
@@ -170,6 +173,11 @@ class Page(object):
         for ancestor in self.ancestors:
             ancestor.active = active
 
+    def set_builder(self, build_func, data):
+        self.func = build_func
+        self.build_data = data
+    def has_builder(self):
+        return True if self.func else False
 
 class Header(object):
     def __init__(self, title, children):

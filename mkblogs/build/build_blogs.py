@@ -22,7 +22,7 @@ from multiprocessing import cpu_count as num_of_thread
 
 from mkblogs.build.build_pages import build_pages, get_global_context, \
         site_directory_contains_stale_files,\
-        build_catalog
+        build_catalog, build_index
 
 log = logging.getLogger('mkblogs')
 omit_path = ['index.md', 'img']
@@ -64,7 +64,6 @@ class BlogsGen(object):
                 blog_path = self.context.get_work()
                 if not blog_path:
                     break
-                #TODO: we should have something in return
                 attrs = self.context.build_blog(blog_path, self.tid)
                 self.context.done_work(blog_path, attrs)
 
@@ -107,18 +106,14 @@ class BlogsGen(object):
     def get_work(self):
         return self.toupdate.pop()
     def done_work(self, blog_path, attrs):
-        #since for now, the only attrs is meta...
-        meta = attrs['meta']
         info = []
-        #because vals in meta is always dict, we get the first element
-        info.append((meta.get('title') or meta.get('Title'))[0])
-        info.append((meta.get('date')  or meta.get('Date'))[0])
-        #except tags, they needs to be include
-        info.append(meta.get('tags')  or meta.get('Tags'))
+        info.append(attrs['page_title'])
+        info.append(attrs['page_date'] )
+        info.append(attrs['page_tags'] )
         self.updated[blog_path] = info
 
     def build_blog(self, path, tid):
-        wanted_attrs = ['meta']
+        wanted_attrs = ['page_date', 'page_title', 'page_tags']
         unwanted_attrs = ['toc']
         return self._build_blog(path, self.config, tid,
                 wanted_attrs, unwanted_attrs)
@@ -140,7 +135,7 @@ class BlogsGen(object):
         extens = config['markdown_extensions']
 
         html_content, toc, meta = parser.convert_markdown(
-            input_content, #without site_navigation
+            input_content,
             extensions=extens, strict=config['strict'], wantmd=False
         )
 
@@ -149,6 +144,7 @@ class BlogsGen(object):
         context.update(get_blog_context(config, html_content, toc, meta))
 
         #get what users wanted and remove want users dont wanted
+        #so in general, toc is removed
         output_attrs = {}
         for i in wanted_attrs:
             output_attrs[i] = context.get(i)
@@ -166,7 +162,7 @@ class BlogsGen(object):
         # Render the template.
         final_content =  template.render(context)
         #just write right in the directory
-        output_path = os.path.splitext(input_path)[0] + '.html'
+        output_path = utils.get_html_path(input_path)
         with open(output_path, 'w') as f:
             f.write(final_content.encode('utf8'))
             f.close()
@@ -178,11 +174,25 @@ def get_blog_context(config, html, toc, meta):
     """
     update a blogs' page context
     """
+    try:
+        title = (meta.get('title') or meta.get('Title'))[0]
+        date = (meta.get('date') or meta.get('Date'))[0]
+    except:
+        raise NameError('Error in retrieving blogs meta')
+
+    date = utils.parse_date(date)
+    tags = meta.get('tags') or meta.get('Tags')
+    if not tags:
+        tags = ['TO TAGS']
+
     return {
             #there is no next page and previous page for blo
             'content' : html,
             'toc' : toc,
-            'meta' : meta
+            'meta' : meta,
+            'page_title' : title,
+            'page_date' : date,
+            'page_tags' : tags
             }
 
 def read_ignore(ignored_file):
@@ -195,13 +205,6 @@ def read_ignore(ignored_file):
                 ignored_files.append(line)
             f.close()
     return ignored_list
-
-def add_top_n(newest_paths, to_add, n):
-    newest_paths.extend(to_add)
-    if not newest_paths:
-        return []
-    return sorted(newest_paths, key=operator.itemgetter(1), \
-            reverse=True)[:n]
 
 
 def get_toupdate(directory, config):
@@ -223,7 +226,7 @@ def get_toupdate(directory, config):
             continue
         if utils.is_page(f_abs, config['pages']):
             continue
-        if utils.is_markdown_file(f):
+        if utils.is_markdown_file(f):   #change is to is new_md
             markdown_list[f] = os.path.getmtime(f_abs)
         if utils.is_html_file(f):       #we dont care what the generated html extension is
             html_list[os.path.splitext(f)[0]] = os.path.getmtime(f_abs)
@@ -243,6 +246,9 @@ def get_toupdate(directory, config):
     return toupdate
 
 def build_blogs(config):
+    """
+    build blogs and generate enough information for build pages
+    """
     topn = config.get('n_blogs_to_show') or 5
     dot_record = config.get('dot_record') or '.record'
 
@@ -261,26 +267,29 @@ def build_blogs(config):
     compiler.start()
 
     #XXX: Step 3, merge compiler.updated with dot_record
-    for key in compiler.updated.keys():
-        blog_record[key] = compiler.updated[key]
-    #XXX: Step 4, generate catalogs with dot_record
-    cata_list = {'default':[]}
-    for key in blog_record.keys():
-        tags = (blog_record[key])[-1]
-        if not tags:
-            cata_list['default'].append(key)
-        for tag in tags:
-            if not cata_list.get(tag):
-                cata_list[tag] = [(blog_record[key][0], key)]
-            else:
-                cata_list[tag].append((blog_record[key][0], key))
+    blog_record.update(compiler.updated)
     with open(os.path.join(config['docs_dir'],dot_record), 'w') as f:
         f.write(json.dumps(blog_record, ensure_ascii=False).encode('utf8'))
         f.close()
 
-    build_catalog(config, cata_list)
-    parser.write_top_index(config, n_newest_path)
+    #XXX: Step 4, generate catalogs and index
+    config['cata_list'] = gen_catalist(blog_record)
+    config['blogs_on_index'] = utils.sort_blogs(blog_record)[:topn]
+
+    #build_catalog(config, cata_list)
+    #build_index(config, blogs_on_index)
     #now we are done building all blogs, time to copy all html files to it.
+
+def gen_catalist(record):
+    cata_list = {}
+    for key in record.keys():
+        tags = (record[key])[-1]
+        for tag in tags:
+            if not cata_list.get(tag):
+                cata_list[tag] = [(record[key][0], key)]
+            else:
+                cata_list[tag].append((record[key][0], key))
+    return cata_list
 
 def build(config, live_server=False, clean_site_dir=False):
     """
@@ -311,6 +320,7 @@ def build(config, live_server=False, clean_site_dir=False):
 
     log.debug("Copying static assets from the docs dir.")
     utils.copy_media_files(config['docs_dir'], config['site_dir'])
+
 
 
 
