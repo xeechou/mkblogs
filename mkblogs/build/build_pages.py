@@ -133,7 +133,7 @@ def build_catalog(page, config, site_navigation, env):
     location of the index file. If using our senario, we will treat it as dir,
     then it points to dirname.
     """
-    #DEBUG:
+
     input_path = page.input_path
     with open(input_path, 'w') as f:
         for key in catalist.keys():
@@ -168,7 +168,7 @@ def build_404(config, env, site_navigation):
 def _build_page(page, config, site_navigation, env):
 
     # Read the input file
-    input_path = os.path.join(config['docs_dir'], page.input_path)
+    input_path = page.input_path
 
     try:
         input_content = open(input_path, 'r').read()
@@ -202,7 +202,7 @@ def _build_page(page, config, site_navigation, env):
     output_content = template.render(context)
 
     # Write the output file.
-    output_path = os.path.join(config['docs_dir'], page.output_path)
+    output_path = page.output_path
     utils.write_file(output_content.encode('utf-8'), output_path)
 
 
@@ -218,7 +218,6 @@ def build_pages(config):
     index.set_builder(build_index)
     catalist = site_navigation.get_page('Catalog')
     catalist.set_builder(build_catalog)
-    print(config['blogs_on_index'])
     build_404(config, env, site_navigation)
 
     for page in site_navigation.walk_pages():
