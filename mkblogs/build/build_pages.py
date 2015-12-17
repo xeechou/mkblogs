@@ -133,7 +133,6 @@ def build_catalog(page, config, site_navigation, env):
     location of the index file. If using our senario, we will treat it as dir,
     then it points to dirname.
     """
-
     input_path = page.input_path
     with open(input_path, 'w') as f:
         for key in catalist.keys():
@@ -144,10 +143,8 @@ def build_catalog(page, config, site_navigation, env):
         f.close()
     _build_page(page, config, site_navigation, env)
 
-def build_index(page, config, site_navigation, env):
-    """simply generate a list of blogs for template to render, but we need to
-    make html and """
-    newblogs = config['blogs_on_index']
+
+
 
 def build_404(config, env, site_navigation):
 
@@ -164,9 +161,41 @@ def build_404(config, env, site_navigation):
     output_path = os.path.join(config['docs_dir'], '404.html')
     utils.write_file(output_content.encode('utf-8'), output_path)
 
+def build_index(page, config, site_navigation, env):
+    """
+    the blogs_on_index is a list of name of blogs, under docs/
+    """
+    template = env.get_template('base.html')
+
+    context = get_global_context(site_navigation, config)
+    context.update({'structure' : 'index.html'})
+    newblogs = config['blogs_on_index']
+    for blog in newblogs:
+        blog_path = os.path.join(config['docs_dir'],blog_path)
+        try:
+            input_content = open(blog_path,'r').read()
+        except:
+            log.error('failed to generate index from %s', blog_path)
+            continue
+        if PY2:
+            input_content = input_content.decode('utf-8')
+
+        #deal with relative path
+        html_content, table_of_contents, meta = parser.convert_markdown(
+            input_content, site_navigation,
+            extensions=config['markdown_extensions'], strict=config['strict']
+        )
+
+        #get their attributes
+        context['page_titles'].append('some')
+        context['page_date'].append('some')
+        context['page_tagss'].append([])
+        context['contents'].append('some')
+
+    output_content = template.render(context)
+    utils.write_file(output_content.encode('utf-8'), 'index.html')
 
 def _build_page(page, config, site_navigation, env):
-
     # Read the input file
     input_path = page.input_path
 
@@ -228,7 +257,6 @@ def build_pages(config):
         except:
             log.error("Error building page %s", page.input_path)
             raise
-
 
 
 

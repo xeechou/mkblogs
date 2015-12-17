@@ -41,9 +41,6 @@ class SiteNavigation(object):
         return iter(self.nav_items)
 
     def update_path(self, page):
-        """
-        isolate this out so someone can manually update his site_naviation
-        """
         page.set_active()
         self.url_context.set_current_url(page.abs_url)
         self.file_context.set_current_path(page.input_path)
@@ -87,30 +84,28 @@ class URLContext(object):
     The URLContext is used to ensure that we can generate the appropriate
     relative URLs to other pages from any given page in the site.
 
-    We use relative URLs so that static sites can be deployed to any location
-    without having to specify what the path component on the host will be
-    if the documentation is not hosted at the root path.
+    The problem we have is relative_url has too many problem, I cannot make
+    relative to a dynamic url and static url(eg: docs/some.md and /image.png)
     """
 
     def __init__(self):
         self.base_path = '/'
 
     def set_current_url(self, current_url):
+        """
+        now all the current url is 'static'!!!
+        we assume if current_url is something like docs/image.html, it is the
+        '/docs/image.html' we want
+        """
         self.base_path = posixpath.dirname(current_url)
+        if not self.base_path.startswith('/'):
+            self.base_path = '/'+self.base_path
 
     def make_relative(self, url):
         """
-        Given a URL path return it as a relative URL,
-        given the context of the current page.
+        return the relative url of an ABS URL to base_path
         """
         suffix = '/' if (url.endswith('/') and len(url) > 1) else ''
-        # Workaround for bug on `posixpath.relpath()` in Python 2.6
-        if self.base_path == '/':
-            if url == '/':
-                # Workaround for static assets
-                return '.'
-            return url.lstrip('/')
-        # Under Python 2.6, relative_path adds an extra '/' at the end.
         relative_path = posixpath.relpath(url, start=self.base_path).rstrip('/') + suffix
 
         return relative_path
@@ -265,3 +260,19 @@ def _generate_site_navigation(pages_config, url_context):
         pages.append(page)
 
     return (nav_items, pages)
+
+if __name__ =='__main__':
+    from mkblogs.utils import create_relative_media_url
+
+    url_context = URLContext()
+    url_context.set_current_url('docs/anotherdoc.html')
+    url0 = './image'
+    url1 = '/image'
+
+    for url in [url0, url1]:
+        #the code from utils.py
+        if not url.startswith('/'): #relative link, we don't care
+            relative_url = './%s' % (url)
+        else:                       #this is abs link, but abs to the base of url
+            relative_url = url_context.make_relative(url)
+        print(relative_url)

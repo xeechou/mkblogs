@@ -138,8 +138,8 @@ class BlogsGen(object):
             input_content,
             extensions=extens, strict=config['strict'], wantmd=False
         )
-
-        context = self.global_context[tid]  #each thread has its our context
+        #every thread has its our context
+        context = self.global_context[tid]
         context.update(BLANK_BLOG_CONTEXT)
         context.update(get_blog_context(config, html_content, toc, meta))
 
@@ -275,10 +275,6 @@ def build_blogs(config):
     #XXX: Step 4, generate catalogs and index
     config['catalist'] = gen_catalist(blog_record)
     config['blogs_on_index'] = utils.sort_blogs(blog_record)[:topn]
-
-    #build_catalog(config, cata_list)
-    #build_index(config, blogs_on_index)
-    #now we are done building all blogs, time to copy all html files to it.
 
 def gen_catalist(record):
     cata_list = {}
