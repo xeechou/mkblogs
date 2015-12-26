@@ -1,24 +1,11 @@
 """
 # Relative Path Markdown Extension
 
-During the MkDocs build we rewrite URLs that link to local
-Markdown or media files. Using the following pages configuration
-we can look at how the output is changed.
-
-    pages:
-    - ['index.md']
-    - ['tutorial/install.md']
-    - ['tutorial/intro.md']
-
 ## Markdown URLs
 
-When linking from `install.md` to `intro.md` the link would
-simply be `[intro](intro.md)`. However, when we build
-`install.md` we place it in a directory to create nicer URLs.
-This means that the path to `intro.md` becomes `../intro/`
+Linking 'intro.md' to 'index.md' make intro.md to 'intro.html'
 
 ## Media URLs
-
 To make it easier to work with media files and store them all
 under one directory we re-write those to all be based on the
 root. So, with the following markdown to add an image.
@@ -28,19 +15,19 @@ root. So, with the following markdown to add an image.
 The output would depend on the location of the Markdown file it
 was added too.
 
-Source file         | Generated Path    | Image Path                   |
-------------------- | ----------------- | ---------------------------- |
-index.md            | /                 | ./img/initial-layout.png     |
-tutorial/install.md | tutorial/install/ | ../img/initial-layout.png    |
-tutorial/intro.md   | tutorial/intro/   | ../../img/initial-layout.png |
+Source file         | Url Path              | Image Path                   |
+------------------- | --------------------- | ---------------------------- |
+index.md            | index.html            | ./img/initial-layout.png     |
+tutorial/install.md | tutorial/install.html | ./img/initial-layout.png     |
+tutorial/intro.md   | tutorial/intro.html   | ./img/initial-layout.png     |
 
 """
 from __future__ import print_function
-
+import os
 from markdown.extensions import Extension
 from markdown.treeprocessors import Treeprocessor
 
-import utils
+from mkblogs import utils
 from mkblogs.compat import urlparse, urlunparse
 from mkblogs.exceptions import MarkdownNotFound
 
@@ -51,35 +38,37 @@ def _iter(node):
     return [node] + node.findall('.//*')
 
 
-def path_to_url(url, nav, strict):
+def path_to_url(url, page, strict):
+    """
+    convert a path to valid url:
+    1) if it is a media file, we change nothing
+    2) if it is a md file, we make it to html file
+    3) if it is url, we need to parse it
+    """
     scheme, netloc, path, params, query, fragment = urlparse(url)
 
     if scheme or netloc or not path:
         # Ignore URLs unless they are a relative link to a markdown file.
         return url
 
-    if nav and not utils.is_markdown_file(path):
-        path = utils.create_relative_media_url(nav, path)
-    elif nav:
-        # If the site navigation has been provided, then validate
-        # the internal hyperlink, making sure the target actually exists.
-        target_file = nav.file_context.make_absolute(path)
-        if target_file not in nav.source_files:
-            source_file = nav.file_context.current_file
+    if page and not utils.is_markdown_file(path):
+        path = utils.create_relative_media_url(page.url_context, path)
+    elif page:
+        target_file = page.file_context.make_absolute(path)
+        if not os.path.exists(target_file):
+            source_file = page.file_context.current_file
             msg = (
                 'The page "%s" contained a hyperlink to "%s" which '
-                'is not listed in the "pages" configuration.'
+                'does not exist.'
             ) % (source_file, target_file)
-
-            # In strict mode raise an error at this point.
             if strict:
                 raise MarkdownNotFound(msg)
-            # Otherwise, when strict mode isn't enabled, print out a warning
-            # to the user and leave the URL as it is.
-            print(msg)
-            return url
+            else:
+                print(msg)
+                return url
+
         path = utils.get_url_path(target_file)
-        path = nav.url_context.make_relative(path)
+        path = page.url_context.make_relative(path)
     else:
         path = utils.get_url_path(path).lstrip('/')
 
@@ -90,8 +79,8 @@ def path_to_url(url, nav, strict):
 
 class RelativePathTreeprocessor(Treeprocessor):
 
-    def __init__(self, site_navigation, strict):
-        self.site_navigation = site_navigation
+    def __init__(self, page, strict):
+        self.this_page = page
         self.strict = strict
 
     def run(self, root):
@@ -111,7 +100,7 @@ class RelativePathTreeprocessor(Treeprocessor):
                 continue
 
             url = element.get(key)
-            new_url = path_to_url(url, self.site_navigation, self.strict)
+            new_url = path_to_url(url, self.this_page, self.strict)
             element.set(key, new_url)
 
         return root
@@ -123,18 +112,18 @@ class RelativePathExtension(Extension):
     registers the Treeprocessor.
     """
 
-    def __init__(self, site_navigation, strict):
-        self.site_navigation = site_navigation
+    def __init__(self, page, strict):
+        self.this_page = page
         self.strict = strict
 
     def extendMarkdown(self, md, md_globals):
-        relpath = RelativePathTreeprocessor(self.site_navigation, self.strict)
+        relpath = RelativePathTreeprocessor(self.this_page, self.strict)
         md.treeprocessors.add("relpath", relpath, "_end")
 
 class TitleTreeprocessor(Treeprocessor):
     def run(self, root):
         """
-        find first <h1> then set it, so later we can get it back 
+        find first <h1> then set it, so later we can get it back
         """
         for element in _iter(root):
             if element.tag == 'h1':

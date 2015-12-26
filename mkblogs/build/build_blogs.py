@@ -9,7 +9,6 @@ import mkblogs
 from mkblogs import utils
 from mkblogs.build import html as parser
 from mkblogs.compat import urljoin, PY2
-from mkblogs.relative_path_ext import RelativePathExtension, TitleExtension
 from mkblogs.build import nav
 import jinja2
 import json
@@ -126,11 +125,10 @@ class BlogsGen(object):
         """
         A generic _build_blog method, users can edit attribute themselves
         """
-        input_path = os.path.join(config['docs_dir'], blog.input_path)
         try:
-            input_content = open(input_path, 'r').read()
+            input_content = open(blog.input_path, 'r').read()
         except IOError:
-            log.error('file not found: %s', input_path)
+            log.error('file not found: %s', blog.input_path)
             return
         if PY2:
             input_content = input_content.decode('utf-8')
@@ -138,7 +136,7 @@ class BlogsGen(object):
         extens = config['markdown_extensions']
 
         html_content, toc, meta = parser.convert_markdown(
-            input_content,
+            input_content, page=blog,
             extensions=extens, strict=config['strict'], wantmd=False
         )
         #every thread has its our context
@@ -165,8 +163,8 @@ class BlogsGen(object):
         # Render the template.
         final_content =  template.render(context)
         #just write right in the directory
-        output_path = os.path.join(config['docs_dir'], blog.output_path)
-        with open(output_path, 'w') as f:
+
+        with open(blog.output_path, 'w') as f:
             f.write(final_content.encode('utf8'))
             f.close()
 
@@ -229,22 +227,10 @@ def get_toupdate(directory, config):
             continue
         if utils.is_page(f_abs, config['pages']):
             continue
-        if utils.is_markdown_file(f):   #change is to is new_md
-            markdown_list[f] = os.path.getmtime(f_abs)
-        if utils.is_html_file(f):       #we dont care what the generated html extension is
-            html_list[os.path.splitext(f)[0]] = os.path.getmtime(f_abs)
         if os.path.isdir(f_abs):
             continue
-
-    for key in markdown_list.keys():
-        name = os.path.splitext(key)[0]
-        mtime = markdown_list[key]
-        if not html_list.get(name):
-            toupdate.append(key)
-        elif html_list.get(name) < mtime:
-            toupdate.append(key)
-        else: #html_list.get(name) >= mtime
-            continue
+        if utils.is_newmd(f_abs):   #change is to is new_md
+            toupdate.append(f_abs)
 
     return toupdate
 
@@ -316,7 +302,7 @@ def build(config, live_server=False, clean_site_dir=False):
     # precedence.
     for theme_dir in reversed(config['theme_dir']):
         log.debug("Copying static assets from theme: %s", theme_dir)
-        utils.copy_media_files(theme_dir, config['site_dir'])
+        utils.copy_media_files(theme_dir, '')
 
     log.debug("Copying static assets from the docs dir.")
     utils.copy_media_files(config['docs_dir'], config['site_dir'])

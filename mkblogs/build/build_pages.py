@@ -134,7 +134,7 @@ def build_catalog(page, config, site_navigation, env):
         for key in catalist.keys():
             f.write(add_category(key))
             for (blog_name, blog_path) in catalist[key]:
-                blog_path = os.path.join(config['docs_dir'],blog_path)
+                blog_path = os.path.join(blog_path)
                 f.write( add_cate_blog(blog_name, blog_path))
         f.close()
     _build_page(page, config, site_navigation, env)
@@ -163,9 +163,13 @@ def build_index(page, config, site_navigation, env):
 
     context = get_global_context(page, site_navigation, config)
     context.update({'structure' : 'index.html'})
+    context['page_titles'] = []
+    context['page_dates'] = []
+    context['page_tagss'] = []
+    context['contents'] = []
+
     newblogs = config['blogs_on_index']
-    for blog in newblogs:
-        blog_path = os.path.join(config['docs_dir'], blog)
+    for blog_path in newblogs:
         try:
             input_content = open(blog_path,'r').read()
         except:
@@ -182,12 +186,12 @@ def build_index(page, config, site_navigation, env):
 
         #get their attributes
         context['page_titles'].append('some')
-        context['page_date'].append('some')
+        context['page_dates'].append('some')
         context['page_tagss'].append([])
         context['contents'].append('some')
 
-    output_content = template.render(context)
-    utils.write_file(output_content.encode('utf-8'), 'index.html')
+    #output_content = template.render(context)
+    #utils.write_file(output_content.encode('utf-8'), 'index.html')
 
 #XXX:fixed
 def _build_page(page, config, site_navigation, env):
@@ -205,7 +209,7 @@ def _build_page(page, config, site_navigation, env):
 
     # Process the markdown text
     html_content, table_of_contents, meta = parser.convert_markdown(
-        input_content, site_navigation,
+        input_content, page,
         extensions=config['markdown_extensions'], strict=config['strict']
     )
 
