@@ -72,10 +72,6 @@ DEFAULT_CONFIG = {
     # encountered rather than display an error.
     'strict': False,
 
-    #insert self defined pages after default pages, test Based on title
-    #and another thing to be noticed, here we didn't know anything about
-    #'docs_dir', so we decide to ignore it first, and append them later
-    'default pages' : [['index.md', 'Home'], ['catalist.md', 'Catalog']]
 }
 
 def load_config(filename='mkblogs.yml', options=None):
@@ -115,16 +111,14 @@ def validate_config(user_config):
             "The 'site_dir' can't be within the 'docs_dir'.")
 
     # If not specified, then the 'pages' config simply are catalist and index.md
-    pages = config['default pages']
-    config['pages'] = [] if not config['pages'] else config['pages']
-    for page in config['pages']:
-        if utils.is_homepage(page[0]):
-            pages[0] = [page[0], page[1]]
-        elif page[1] == 'Catalog':
-            pages[1] = [page[0], 'Catalog']
-        else:
-            pages.append(page)
-    config['pages'] = pages
+    pages = [] if not config['pages'] else config['pages']
+
+    #check if user included the pages we generate automatically
+    for i in range(len(pages)):
+        path, title, child_title = utils.exact_page_config(pages[i])
+        if utils.is_homepage(path) or utils.is_catalog(path):
+            raise ConfigurationError("Homepage or Catalog is no need in config")
+    config['pages'] = [['index.md', 'Home'], ['catalog.md', 'Catalogs']] + pages
 
     extra_css = []
     extra_javascript = []

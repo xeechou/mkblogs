@@ -21,27 +21,23 @@ log = logging.getLogger('mkblogs')
 
 
 
-def get_global_context(nav, config):
+def get_global_context(page, nav, config):
     """
-    Given the SiteNavigation and config, generate the context which is relevant
-    to app pages.
+    page has url_context as well, move them
     """
 
     site_name = config['site_name']
 
     if config['site_favicon']:
-        site_favicon = nav.url_context.make_relative('/' + config['site_favicon'])
+        site_favicon = page.url_context.make_relative('/' + config['site_favicon'])
     else:
         site_favicon = None
 
     page_description = config['site_description']
 
-    extra_javascript = utils.create_media_urls(nav=nav, url_list=config['extra_javascript'])
+    extra_javascript = utils.create_media_urls(page=page, url_list=config['extra_javascript'])
 
-    extra_css = utils.create_media_urls(nav=nav, url_list=config['extra_css'])
-
-    #print(nav.url_context.base_path)
-    #print (posixpath.relpath('/', start=nav.url_context.base_path))
+    extra_css = utils.create_media_urls(page=page, url_list=config['extra_css'])
 
     return {
         'site_name': site_name,
@@ -57,7 +53,7 @@ def get_global_context(nav, config):
         'repo_url': config['repo_url'],
         'repo_name': config['repo_name'],
         'nav': nav,
-        'base_url': nav.url_context.make_relative('/'), #base_url is a
+        'base_url': page.url_context.make_relative('/'), #base_url is a
                                                         #relative_url from page to themes
         'homepage_url': nav.homepage.url,
         #print(homepage_url)
@@ -144,8 +140,7 @@ def build_catalog(page, config, site_navigation, env):
     _build_page(page, config, site_navigation, env)
 
 
-
-
+#XXX:fixed
 def build_404(config, env, site_navigation):
 
     log.debug("Building 404.html page")
@@ -154,12 +149,11 @@ def build_404(config, env, site_navigation):
         template = env.get_template('404.html')
     except TemplateNotFound:
         return
-
-    global_context = get_global_context(site_navigation, config)
+    page = nav.Page('Page Not Found', '404.html', '404.md')
+    global_context = get_global_context(page, site_navigation, config)
 
     output_content = template.render(global_context)
-    output_path = os.path.join(config['docs_dir'], '404.html')
-    utils.write_file(output_content.encode('utf-8'), output_path)
+    utils.write_file(output_content.encode('utf-8'), '404.html')
 
 def build_index(page, config, site_navigation, env):
     """
@@ -167,11 +161,11 @@ def build_index(page, config, site_navigation, env):
     """
     template = env.get_template('base.html')
 
-    context = get_global_context(site_navigation, config)
+    context = get_global_context(page, site_navigation, config)
     context.update({'structure' : 'index.html'})
     newblogs = config['blogs_on_index']
     for blog in newblogs:
-        blog_path = os.path.join(config['docs_dir'],blog_path)
+        blog_path = os.path.join(config['docs_dir'], blog)
         try:
             input_content = open(blog_path,'r').read()
         except:
@@ -195,6 +189,7 @@ def build_index(page, config, site_navigation, env):
     output_content = template.render(context)
     utils.write_file(output_content.encode('utf-8'), 'index.html')
 
+#XXX:fixed
 def _build_page(page, config, site_navigation, env):
     # Read the input file
     input_path = page.input_path
@@ -214,7 +209,7 @@ def _build_page(page, config, site_navigation, env):
         extensions=config['markdown_extensions'], strict=config['strict']
     )
 
-    context = get_global_context(site_navigation, config)
+    context = get_global_context(page, site_navigation, config)
     context.update(get_page_context(
         page, html_content, table_of_contents, meta, config
     ))
@@ -222,8 +217,6 @@ def _build_page(page, config, site_navigation, env):
     # Allow 'template:' override in md source files.
     if 'template' in meta:
         template = env.get_template(meta['template'][0])
-    elif site_navigation.page_template(page):
-        template = env.get_template(site_navigation.page_template(page))
     else:
         template = env.get_template('base.html')
 
@@ -234,18 +227,18 @@ def _build_page(page, config, site_navigation, env):
     output_path = page.output_path
     utils.write_file(output_content.encode('utf-8'), output_path)
 
-
-def build_pages(config):
+#XXX:fixed
+def build_pages(config, site_navigation):
     """
     Builds all the pages and writes them into the build directory.
     """
-    site_navigation = nav.SiteNavigation(config['pages'])
+    #site_navigation = nav.SiteNavigation(config['pages'])
     loader = jinja2.FileSystemLoader(config['theme_dir'])
     env = jinja2.Environment(loader=loader)
 
     index = site_navigation.get_page('Home')
     index.set_builder(build_index)
-    catalist = site_navigation.get_page('Catalog')
+    catalist = site_navigation.get_page('Catalogs')
     catalist.set_builder(build_catalog)
     build_404(config, env, site_navigation)
 

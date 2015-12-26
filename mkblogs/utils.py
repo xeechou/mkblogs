@@ -12,6 +12,7 @@ import shutil
 import operator
 import time
 
+from mkblogs import exceptions
 from mkblogs.compat import urlparse
 from dateutil.parser import parse as _parse_date
 from datetime import datetime
@@ -32,7 +33,9 @@ def copy_file(source_path, output_path):
     Copy source_path to output_path, making sure any parent directories exist.
     """
     output_dir = os.path.dirname(output_path)
-    if not os.path.exists(output_dir):
+    if output_dir == '' or os.path.exists(output_dir):
+        pass
+    else:
         os.makedirs(output_dir)
     shutil.copy(source_path, output_path)
 
@@ -42,7 +45,9 @@ def write_file(content, output_path):
     Write content to output_path, making sure any parent directories exist.
     """
     output_dir = os.path.dirname(output_path)
-    if not os.path.exists(output_dir):
+    if output_dir == '' or os.path.exists(output_dir):
+        pass
+    else:
         os.makedirs(output_dir)
     open(output_path, 'wb').write(content)
 
@@ -113,9 +118,29 @@ def get_url_path(path):
     url = '/' + path.replace(os.path.sep, '/')
     return url
 
+def exact_page_config(config_line):
+    #this is not what we wanted, Another day
+    if isinstance(config_line, str):
+        path = config_line
+        title, child_title = None, None
+    elif len(config_line) in (1, 2, 3):
+        # Pad any items that don't exist with 'None'
+        padded_config = (list(config_line) + [None, None])[:3]
+        path, title, child_title = padded_config
+    else:
+        msg = (
+            "Line in 'page' config contained %d items.  "
+            "Expected 1, 2 or 3 strings." % len(config_line)
+        )
+        raise exceptions.ConfigurationError(msg)
+    return path, title, child_title
 
 def is_homepage(path):
     return os.path.splitext(path)[0] == 'index'
+def is_catalog(path):
+    name = os.path.splitext(path)[0]
+    return name == 'catalog' or name == 'Catalog'\
+        or name == 'catalogs' or name == 'Catalogs'
 
 
 def is_markdown_file(path):
@@ -186,15 +211,16 @@ def is_page(doc_path, pages):
     a = ../someplace/aaa.md
     b = aaa.md
     """
-    for [path, name] in pages:
-        if os.path.relpath(doc_path, path) == '.':
+    for page in pages:
+        path, title, child_title = exact_page_config(page)
+        if path == doc_path:
             return True
     return False
 
 
 
 
-def create_media_urls(nav, url_list):
+def create_media_urls(page, url_list):
     """
     Return a list of URLs that have been processed correctly for inclusion in a page.
     """
@@ -205,16 +231,14 @@ def create_media_urls(nav, url_list):
         if parsed.netloc:
             final_urls.append(url)
         else:
-            relative_url = '%s/%s' % (nav.url_context.make_relative('/'), url)
+            relative_url = '%s/%s' % (page.url_context.make_relative('/'), url)
             final_urls.append(relative_url)
     return final_urls
 
 
-def create_relative_media_url(nav, url):
+#TODO: change nav to url context
+def create_relative_media_url(url_context, url):
     """
-    This function should be dead, we don't use seperated dir for pages anymore
-    For a current page, create a relative url based on the given URL.
-
     On index.md (which becomes /index.html):
         image.png -> ./image.png
         /image.png -> ./image.png
@@ -222,37 +246,19 @@ def create_relative_media_url(nav, url):
     on sub/page.md (which becomes /sub/page.html):
         image.png -> ./image.png
         /image.png -> ./../image.png
-
     """
-
     # Allow links to fully qualified URL's
     parsed = urlparse(url)
     if parsed.netloc:
         return url
 
-    # If the URL we are looking at starts with a /, then it should be
-    # considered as absolute and will be 'relative' to the root.
-    if url.startswith('/'):
-        base = '/'
-        url = url[1:]
-    else:
-        base = nav.url_context.base_path
-    # base became himself, so first %s/ is just '.'
-    relative_url = '%s/%s' % (nav.url_context.make_relative(base), url)
-
-    # TODO: Fix this, this is a hack. Relative urls are not being calculated
-    # correctly for images in the same directory as the markdown. I think this
-    # is due to us moving it into a directory with index.html, but I'm not sure
-
-    # TODO: I may want to get rid of below, transforming page.md to
-    # page/index.html is too annoying
-    #if nav.url_context.base_path is not '/' and relative_url.startswith("./"):
-    #    relative_url = ".%s" % relative_url
+    if not url.startswith('/'): #relative link, we don't care
+        relative_url = './%s' % (url)
+    else:                       #this is abs link, but abs to the base of url
+        relative_url = url_context.make_relative(url)
 
     return relative_url
 
-#these are for exclusive access
-#XXX: maybe I should override python list and dict object?
 class AtomicList(list):
     def __init__(self, *args):
         self.lock = threading.Lock()
@@ -322,9 +328,9 @@ class AtomicDict(dict):
 #        threads[i].start()
 #    for i in range(10):
 #        threads[i].join()
-if __name__ == "__main__":
-    import json
-    with open('sampleblog/docs/.record') as f:
-        jsonobj = json.loads(f.read())
-        f.close()
-    print()
+#if __name__ == "__main__":
+#    import json
+    #with open('sampleblog/docs/.record') as f:
+    #    jsonobj = json.loads(f.read())
+    #    f.close()
+    #print()

@@ -64,13 +64,15 @@ class BlogsGen(object):
                 blog_path = self.context.get_work()
                 if not blog_path:
                     break
-                attrs = self.context.build_blog(blog_path, self.tid)
+                blog = self.context.setup_page(blog_path, self.tid)
+                attrs = self.context.build_blog(blog, self.context.site_navigation)
                 self.context.done_work(blog_path, attrs)
-
-    def __init__(self, config, tobuild):
+    #XXX:init function fixed.
+    def __init__(self, config, tobuild, site_navigation):
         self.toupdate = utils.AtomicList(tobuild)
         self.updated  = utils.AtomicDict()
         self.config = config
+        self.blogs = []
 
         #XXX: step 1 setup n threads
         try:
@@ -82,19 +84,20 @@ class BlogsGen(object):
             self.workers.append(self.BlogBuilder(self, i))
 
         #XXX: step 2 generate context for building blogs
-        self.site_navigation = nav.SiteNavigation(config['pages'])
+        self.site_navigation = site_navigation
         loader = jinja2.FileSystemLoader(config['theme_dir'])
         self.env = jinja2.Environment(loader=loader)
         dummy = os.path.join(config['docs_dir'], 'dummy')
-        dummy_page = nav.Page(None, url=utils.get_url_path(dummy),
-                path=dummy, url_context = nav.URLContext())
-        self.site_navigation.update_path(dummy_page)
 
         #XXX: step 3. we have different context for every worker, so there will
         #be no data conflict
-        self.global_context = []
         for i in range(nthread):
-            self.global_context.append(get_global_context(self.site_navigation, config))
+            self.blogs.append(nav.Blog(dummy,dummy))
+
+    def setup_page(self, blog_path, tid):
+        blog = self.blogs[tid]
+        blog.set_pathurl(blog_path)
+        return blog
 
     def start(self):
         for t in self.workers:
@@ -112,18 +115,18 @@ class BlogsGen(object):
         info.append(attrs['page_tags'] )
         self.updated[blog_path] = info
 
-    def build_blog(self, path, tid):
+    def build_blog(self, blog,site_navigation):
         wanted_attrs = ['page_date', 'page_title', 'page_tags']
         unwanted_attrs = ['toc']
-        return self._build_blog(path, self.config, tid,
+        return self._build_blog(blog, self.config, site_navigation,
                 wanted_attrs, unwanted_attrs)
-
-    def _build_blog(self, path, config, tid,
+    #XXX:fixed
+    def _build_blog(self, blog, config, site_navigation,
             wanted_attrs=[], unwanted_attrs=[]):
         """
         A generic _build_blog method, users can edit attribute themselves
         """
-        input_path = os.path.join(config['docs_dir'], path)
+        input_path = os.path.join(config['docs_dir'], blog.input_path)
         try:
             input_content = open(input_path, 'r').read()
         except IOError:
@@ -139,7 +142,7 @@ class BlogsGen(object):
             extensions=extens, strict=config['strict'], wantmd=False
         )
         #every thread has its our context
-        context = self.global_context[tid]
+        context = get_global_context(blog, site_navigation, config)
         context.update(BLANK_BLOG_CONTEXT)
         context.update(get_blog_context(config, html_content, toc, meta))
 
@@ -162,7 +165,7 @@ class BlogsGen(object):
         # Render the template.
         final_content =  template.render(context)
         #just write right in the directory
-        output_path = utils.get_html_path(input_path)
+        output_path = os.path.join(config['docs_dir'], blog.output_path)
         with open(output_path, 'w') as f:
             f.write(final_content.encode('utf8'))
             f.close()
@@ -245,7 +248,7 @@ def get_toupdate(directory, config):
 
     return toupdate
 
-def build_blogs(config):
+def build_blogs(config, site_navigation):
     """
     build blogs and generate enough information for build pages
     """
@@ -263,7 +266,7 @@ def build_blogs(config):
     #FIXME: Fix this, if @blog_record is in anyway, missing something, the
     #generated catalog is incompleted
     toupdate = get_toupdate(config['docs_dir'], config)
-    compiler = BlogsGen(config, toupdate)
+    compiler = BlogsGen(config, toupdate, site_navigation)
     compiler.start()
 
     #XXX: Step 3, merge compiler.updated with dot_record
@@ -301,10 +304,11 @@ def build(config, live_server=False, clean_site_dir=False):
 
     #switch the build sequence, so that we can build catalist and index along
     #with pages
+    site_navigation = nav.SiteNavigation(config['pages'])
     log.debug("Building blogs.")
-    build_blogs(config)
+    build_blogs(config, site_navigation)
     log.debug("Building markdown pages.")
-    build_pages(config)
+    build_pages(config, site_navigation)
 
     # NOW move compiled blogs along with themes to site dir
     # Reversed as we want to take the media files from the builtin theme

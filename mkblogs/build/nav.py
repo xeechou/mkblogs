@@ -25,13 +25,10 @@ def filename_to_title(filename):
         title = title.capitalize()
     return title
 
-
 class SiteNavigation(object):
     def __init__(self, pages_config):
-        self.url_context = URLContext()
-        self.file_context = FileContext()
         self.nav_items, self.pages = \
-            _generate_site_navigation(pages_config, self.url_context)
+            _generate_site_navigation(pages_config)
         self.homepage = self.pages[0] if self.pages else None
 
     def __str__(self):
@@ -40,10 +37,9 @@ class SiteNavigation(object):
     def __iter__(self):
         return iter(self.nav_items)
 
+    #make every page has their own url_context
     def update_path(self, page):
         page.set_active()
-        self.url_context.set_current_url(page.abs_url)
-        self.file_context.set_current_path(page.input_path)
 
     def get_page(self, name):
         for page in self.pages:
@@ -135,18 +131,30 @@ class FileContext(object):
         """
         return posixpath.normpath(posixpath.join(self.base_path, path))
 
-
-class Page(object):
-    def __init__(self, title, url, path, url_context):
-        self.title = title
+class Blog(object):
+    def __init__(self, url, path):
         self.abs_url = url
-        self.active = False
-        self.url_context = url_context
-        self.func = None
+        self.url_context = URLContext()
+        self.file_context = FileContext()
 
-        # Relative paths to the input markdown file and output html file.
         self.input_path = path
         self.output_path = utils.get_html_path(path)
+        self.file_context.set_current_path(path)
+        self.url_context.set_current_url(url)
+
+    def set_pathurl(self, path):
+        self.abs_url = utils.get_url_path(path)
+        self.input_path = path
+        self.output_path = utils.get_html_path(path)
+        self.file_context.set_current_path(path)
+        self.url_context.set_current_url(utils.get_url_path(path))
+
+class Page(Blog):
+    def __init__(self, title, url, path):
+        super(Page, self).__init__(url, path)
+        self.title = title
+        self.active = False
+        self.func = None
 
         # Links to related pages
         self.previous_page = None
@@ -197,7 +205,7 @@ class Header(object):
         return ret
 
 
-def _generate_site_navigation(pages_config, url_context):
+def _generate_site_navigation(pages_config):
     """
     Returns a list of Page and Header instances that represent the
     top level site navigation.
@@ -206,20 +214,9 @@ def _generate_site_navigation(pages_config, url_context):
     pages = []
     previous = None
 
+    #TODO: ad new version config
     for config_line in pages_config:
-        if isinstance(config_line, str):
-            path = config_line
-            title, child_title = None, None
-        elif len(config_line) in (1, 2, 3):
-            # Pad any items that don't exist with 'None'
-            padded_config = (list(config_line) + [None, None])[:3]
-            path, title, child_title = padded_config
-        else:
-            msg = (
-                "Line in 'page' config contained %d items.  "
-                "Expected 1, 2 or 3 strings." % len(config_line)
-            )
-            raise exceptions.ConfigurationError(msg)
+        path, title, child_title = utils.exact_page_config(config_line)
 
         # If both the title and child_title are None, then we
         # have just been given a path. If that path contains a /
@@ -236,17 +233,17 @@ def _generate_site_navigation(pages_config, url_context):
 
         if not child_title:
             # New top level page.
-            page = Page(title=title, url=url, path=path, url_context=url_context)
+            page = Page(title=title, url=url, path=path)
             nav_items.append(page)
         elif not nav_items or (nav_items[-1].title != title):
             # New second level page.
-            page = Page(title=child_title, url=url, path=path, url_context=url_context)
+            page = Page(title=child_title, url=url, path=path)
             header = Header(title=title, children=[page])
             nav_items.append(header)
             page.ancestors = [header]
         else:
             # Additional second level page.
-            page = Page(title=child_title, url=url, path=path, url_context=url_context)
+            page = Page(title=child_title, url=url, path=path)
             header = nav_items[-1]
             header.children.append(page)
             page.ancestors = [header]
