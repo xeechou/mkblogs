@@ -1,5 +1,4 @@
 import os, operator
-from lxml import etree
 from mkblogs import utils, toc
 from mkblogs.build import nav
 from mkblogs.mdextern import RelativePathExtension
