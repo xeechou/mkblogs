@@ -1,3 +1,4 @@
+*~
 site/
 env/
 dist/
@@ -6,3 +7,4 @@ htmlcov/
 mkdocs.egg-info/
 *.pyc
 .coverage
+mkblogs/sampleblog
