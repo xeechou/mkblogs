@@ -2,14 +2,14 @@ import os, operator
 from lxml import etree
 from mkblogs import utils, toc
 from mkblogs.build import nav
-from mkblogs.relative_path_ext import RelativePathExtension
+from mkblogs.mdextern import RelativePathExtension
 import markdown
 import logging
 
 """
 compiling functions
 """
-def convert_markdown(markdown_source, site_navigation=None, extensions=(),
+def convert_markdown(markdown_source, page=None, extensions=(),
         strict=False, wantmd=False):
     """
     Convert the Markdown source file to HTML content, and additionally
@@ -22,7 +22,7 @@ def convert_markdown(markdown_source, site_navigation=None, extensions=(),
 
     # Generate the HTML from the markdown source
     builtin_extensions = ['meta', 'toc', 'tables', 'fenced_code']
-    mkblogs_extensions = [RelativePathExtension(site_navigation, strict), ]
+    mkblogs_extensions = [RelativePathExtension(page, strict), ]
     extensions = builtin_extensions + mkblogs_extensions + list(extensions)
     md = markdown.Markdown(
         extensions=extensions

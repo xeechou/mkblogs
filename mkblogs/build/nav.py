@@ -263,13 +263,5 @@ if __name__ =='__main__':
 
     url_context = URLContext()
     url_context.set_current_url('docs/anotherdoc.html')
-    url0 = './image'
-    url1 = '/image'
+    print(url_context.make_relative('/'))
 
-    for url in [url0, url1]:
-        #the code from utils.py
-        if not url.startswith('/'): #relative link, we don't care
-            relative_url = './%s' % (url)
-        else:                       #this is abs link, but abs to the base of url
-            relative_url = url_context.make_relative(url)
-        print(relative_url)
