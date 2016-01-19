@@ -58,6 +58,8 @@ def path_to_url(url, page, strict):
         if not os.path.exists(target_file):
             source_file = page.file_context.current_file
             msg = (
+                #the actual problem is file_context, we cannot check if file
+                #exits if it's path does not start in current dir
                 'The page "%s" contained a hyperlink to "%s" which '
                 'does not exist.'
             ) % (source_file, target_file)
@@ -65,7 +67,6 @@ def path_to_url(url, page, strict):
                 raise MarkdownNotFound(msg)
             else:
                 print(msg)
-                return url
 
         path = utils.get_url_path(target_file)
         path = page.url_context.make_relative(path)
@@ -79,9 +80,11 @@ def path_to_url(url, page, strict):
 
 class RelativePathTreeprocessor(Treeprocessor):
 
-    def __init__(self, page, strict):
+    def __init__(self, page, strict, prefix=None):
         self.this_page = page
         self.strict = strict
+        #add a prefix to all url
+        self.prefix = prefix
 
     def run(self, root):
         """Update urls on anchors and images to make them relative
@@ -101,6 +104,8 @@ class RelativePathTreeprocessor(Treeprocessor):
 
             url = element.get(key)
             new_url = path_to_url(url, self.this_page, self.strict)
+            if self.prefix:
+                new_url = os.path.join(self.prefix, new_url)
             element.set(key, new_url)
 
         return root
@@ -112,12 +117,13 @@ class RelativePathExtension(Extension):
     registers the Treeprocessor.
     """
 
-    def __init__(self, page, strict):
+    def __init__(self, page, strict, prefix=None):
         self.this_page = page
         self.strict = strict
+        self.prefix = prefix
 
     def extendMarkdown(self, md, md_globals):
-        relpath = RelativePathTreeprocessor(self.this_page, self.strict)
+        relpath = RelativePathTreeprocessor(self.this_page, self.strict, self.prefix)
         md.treeprocessors.add("relpath", relpath, "_end")
 
 class TitleTreeprocessor(Treeprocessor):

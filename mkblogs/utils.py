@@ -11,6 +11,7 @@ import os
 import shutil
 import operator
 import time
+import json
 
 from mkblogs import exceptions
 from mkblogs.compat import urlparse
@@ -195,6 +196,8 @@ def is_newmd(doc_path):
     test if @doc_path worth compiling
     @doc_path has to exists
     """
+    if not is_markdown_file(doc_path):
+        return False
     html_path  = os.path.splitext(doc_path)[0] + '.html'
 
     if not os.path.exists(html_path):
@@ -218,9 +221,7 @@ def is_page(doc_path, pages):
     return False
 
 
-
-
-def create_media_urls(page, url_list):
+def create_media_urls(url_context, url_list):
     """
     Return a list of URLs that have been processed correctly for inclusion in a page.
     """
@@ -231,7 +232,7 @@ def create_media_urls(page, url_list):
         if parsed.netloc:
             final_urls.append(url)
         else:
-            relative_url = '%s/%s' % (page.url_context.make_relative('/'), url)
+            relative_url = '%s/%s' % (url_context.make_relative('/'), url)
             final_urls.append(relative_url)
     return final_urls
 
@@ -247,17 +248,29 @@ def create_relative_media_url(url_context, url):
         image.png -> ./image.png
         /image.png -> ./../image.png
     """
-    # Allow links to fully qualified URL's
     parsed = urlparse(url)
     if parsed.netloc:
         return url
+    relative_path = './%s' % url_context.make_relative(url) 
 
-    if not url.startswith('/'): #relative link, we don't care
-        relative_url = './%s' % (url)
-    else:                       #this is abs link, but abs to the base of url
-        relative_url = url_context.make_relative(url)
+    return relative_path
 
-    return relative_url
+def load_json(filename):
+    jsonobj = {}
+    if os.path.isfile(filename):
+        f = open(filename, 'r')
+        try:
+            jsonobj = json.loads(f.read())
+        except: #if the file is corrupted, we just ignore it, we will write it
+                #again anyway
+            print("Warning: corrupted json file")
+        f.close()
+    return jsonobj
+
+def write_json(filename, obj):
+    with open(filename, 'w') as f:
+        f.write(json.dumps(obj, ensure_ascii=False).encode('utf8'))
+        f.close()
 
 class AtomicList(list):
     def __init__(self, *args):

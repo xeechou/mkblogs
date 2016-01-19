@@ -74,7 +74,7 @@ class SiteNavigation(object):
     def page_template(self, page):
         return None
 
-
+#TODO: fix this two
 class URLContext(object):
     """
     The URLContext is used to ensure that we can generate the appropriate
@@ -88,21 +88,17 @@ class URLContext(object):
         self.base_path = '/'
 
     def set_current_url(self, current_url):
-        """
-        now all the current url is 'static'!!!
-        we assume if current_url is something like docs/image.html, it is the
-        '/docs/image.html' we want
-        """
         self.base_path = posixpath.dirname(current_url)
-        if not self.base_path.startswith('/'):
-            self.base_path = '/'+self.base_path
 
     def make_relative(self, url):
         """
         return the relative url of an ABS URL to base_path
         """
-        suffix = '/' if (url.endswith('/') and len(url) > 1) else ''
-        relative_path = posixpath.relpath(url, start=self.base_path).rstrip('/') + suffix
+        if url.startswith('/'):
+            base_path = '/' + self.base_path.lstrip('/')
+            relative_path = posixpath.relpath(url, start=base_path)
+        else:   #it is relative url already
+            relative_path = url
 
         return relative_path
 
@@ -115,6 +111,8 @@ class FileContext(object):
     This is used when we have relative hyperlinks in the documentation, so that
     we can ensure that they point to markdown documents that actually exist
     in the `pages` config.
+
+    But it only works if have correct file context
     """
     def __init__(self):
         self.current_file = None
@@ -148,6 +146,16 @@ class Blog(object):
         self.output_path = utils.get_html_path(path)
         self.file_context.set_current_path(path)
         self.url_context.set_current_url(utils.get_url_path(path))
+
+    def set_abs(self, docs_dir, site_dir):
+        self.file_context.set_current_path(\
+                os.path.join(docs_dir, self.input_path))
+        self.url_context.set_current_url(\
+                os.path.join(site_dir, self.output_path))
+
+    def set_rel(self):
+        self.file_context.set_current_path(self.input_path)
+        self.url_context.set_current_url(self.output_path)
 
 class Page(Blog):
     def __init__(self, title, url, path):
@@ -187,6 +195,7 @@ class Page(Blog):
         self.func = build_func
     def get_builder(self):
         return self.func
+
 
 class Header(object):
     def __init__(self, title, children):

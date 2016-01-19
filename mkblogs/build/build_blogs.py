@@ -42,6 +42,16 @@ BLANK_BLOG_CONTEXT = {
         'previous_page': None,
         'next_page': None
         }
+def get_global_blog_context(blog, site_navigation, config):
+    """
+    This is a temporary hack, because we need different context different where,
+    so we need set_abs then set it back, we may just use different context later
+    """
+    blog.set_abs(config['docs_dir'],config['site_dir'])
+    context = get_global_context(blog, site_navigation, config)
+    blog.set_rel()
+    return context
+
 
 class BlogsGen(object):
     """
@@ -125,10 +135,13 @@ class BlogsGen(object):
         """
         A generic _build_blog method, users can edit attribute themselves
         """
+        input_path = os.path.join(config['docs_dir'],blog.input_path)
+        output_path = os.path.join(config['docs_dir'], blog.output_path)
+
         try:
-            input_content = open(blog.input_path, 'r').read()
+            input_content = open(input_path, 'r').read()
         except IOError:
-            log.error('file not found: %s', blog.input_path)
+            log.error('file not found: %s', input_path)
             return
         if PY2:
             input_content = input_content.decode('utf-8')
@@ -137,10 +150,9 @@ class BlogsGen(object):
 
         html_content, toc, meta = parser.convert_markdown(
             input_content, page=blog,
-            extensions=extens, strict=config['strict'], wantmd=False
-        )
+            extensions=extens, strict=config['strict'])
         #every thread has its our context
-        context = get_global_context(blog, site_navigation, config)
+        context = get_global_blog_context(blog, site_navigation, config)
         context.update(BLANK_BLOG_CONTEXT)
         context.update(get_blog_context(config, html_content, toc, meta))
 
@@ -164,7 +176,7 @@ class BlogsGen(object):
         final_content =  template.render(context)
         #just write right in the directory
 
-        with open(blog.output_path, 'w') as f:
+        with open(output_path, 'w') as f:
             f.write(final_content.encode('utf8'))
             f.close()
 
@@ -220,7 +232,6 @@ def get_toupdate(directory, config):
     toupdate = []
     for f in os.listdir(directory):
         f_abs = os.path.join(directory, f)
-
         if f == dot_ignore:
             continue
         if f in ignored_files:
@@ -230,7 +241,7 @@ def get_toupdate(directory, config):
         if os.path.isdir(f_abs):
             continue
         if utils.is_newmd(f_abs):   #change is to is new_md
-            toupdate.append(f_abs)
+            toupdate.append(f)
 
     return toupdate
 
@@ -242,11 +253,7 @@ def build_blogs(config, site_navigation):
     dot_record = config.get('dot_record') or '.record'
 
     #XXX:Step 1, get blog record, you will need it for updating catalogs
-    blog_record = {}
-    if os.path.isfile(os.path.join(config['docs_dir'],dot_record)):
-        f = open(os.path.join(config['docs_dir'],dot_record))
-        blog_record = json.loads(f.read())
-        f.close()
+    blog_record = utils.load_json(os.path.join(config['docs_dir'],dot_record))
 
     #XXX: Step 2, build all the blogs
     #FIXME: Fix this, if @blog_record is in anyway, missing something, the
@@ -257,9 +264,7 @@ def build_blogs(config, site_navigation):
 
     #XXX: Step 3, merge compiler.updated with dot_record
     blog_record.update(compiler.updated)
-    with open(os.path.join(config['docs_dir'],dot_record), 'w') as f:
-        f.write(json.dumps(blog_record, ensure_ascii=False).encode('utf8'))
-        f.close()
+    utils.write_json(os.path.join(config['docs_dir'],dot_record), blog_record)
 
     #XXX: Step 4, generate catalogs and index
     config['catalist'] = gen_catalist(blog_record)

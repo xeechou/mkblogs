@@ -23,9 +23,10 @@ log = logging.getLogger('mkblogs')
 
 def get_global_context(page, nav, config):
     """
-    page has url_context as well, move them
+    for blogs, url_context here usually config['docs'], because we need to
+    locate the resource files, later. When we compile blogs, remove
+    config['docs'] information as we only want relative urls inside config['docs']
     """
-
     site_name = config['site_name']
 
     if config['site_favicon']:
@@ -35,9 +36,9 @@ def get_global_context(page, nav, config):
 
     page_description = config['site_description']
 
-    extra_javascript = utils.create_media_urls(page=page, url_list=config['extra_javascript'])
+    extra_javascript = utils.create_media_urls(url_context=page.url_context, url_list=config['extra_javascript'])
 
-    extra_css = utils.create_media_urls(page=page, url_list=config['extra_css'])
+    extra_css = utils.create_media_urls(url_context=page.url_context, url_list=config['extra_css'])
 
     return {
         'site_name': site_name,
@@ -56,7 +57,6 @@ def get_global_context(page, nav, config):
         'base_url': page.url_context.make_relative('/'), #base_url is a
                                                         #relative_url from page to themes
         'homepage_url': nav.homepage.url,
-        #print(homepage_url)
 
         'extra_css': extra_css,
         'extra_javascript': extra_javascript,
@@ -121,21 +121,19 @@ def add_cate_blog(blog, path):
     return "+ [{0}]({1})\n".format(blog.encode('utf8'), path.encode('utf8'))
 
 def build_catalog(page, config, site_navigation, env):
+    """
+    write the top catalog page for blogs according to catalist.
+    """
     catalist = config['catalist']
-    """
-    write the top catalog page for blogs according to catalist,
-    catalist is list of dirnames, in mkblogs's scenario, it will treat dirname as
-    actual file, and transfer to 'dirname/index.md', which points to exact
-    location of the index file. If using our senario, we will treat it as dir,
-    then it points to dirname.
-    """
     input_path = page.input_path
     with open(input_path, 'w') as f:
         for key in catalist.keys():
             f.write(add_category(key))
             for (blog_name, blog_path) in catalist[key]:
-                blog_path = os.path.join(blog_path)
-                f.write( add_cate_blog(blog_name, blog_path))
+                """hard code the blog addr to its html addr, fix this later"""
+                blog_url = os.path.join(config['site_dir'], 
+                        utils.get_html_path(blog_path))
+                f.write(add_cate_blog(blog_name, blog_url))
         f.close()
     _build_page(page, config, site_navigation, env)
 
@@ -155,48 +153,59 @@ def build_404(config, env, site_navigation):
     output_content = template.render(global_context)
     utils.write_file(output_content.encode('utf-8'), '404.html')
 
+def get_blog_meta(data):
+    #TODO: either we change the template or blog_record file format
+    blog = {}
+    blog['title'] = data[0]
+    blog['date'] = data[1]
+    blog['tags'] = data[2]
+    return blog
+
 def build_index(page, config, site_navigation, env):
     """
     the blogs_on_index is a list of name of blogs, under docs/
     """
+    dot_record = config.get('dot_record') or '.record'
+    blog_record = utils.load_json(os.path.join(config['docs_dir'],dot_record))
+
     template = env.get_template('base.html')
 
     context = get_global_context(page, site_navigation, config)
-    context.update({'structure' : 'index.html'})
-    context['page_titles'] = []
-    context['page_dates'] = []
-    context['page_tagss'] = []
-    context['contents'] = []
+    context.update({'structure' : 'ind.html'})
+    topblogs = []
 
     newblogs = config['blogs_on_index']
     for blog_path in newblogs:
         try:
-            input_content = open(blog_path,'r').read()
+            input_content = open(os.path.join(config['docs_dir'], blog_path),'r').read()
         except:
             log.error('failed to generate index from %s', blog_path)
             continue
         if PY2:
             input_content = input_content.decode('utf-8')
 
-        #deal with relative path
+        newblog = nav.Blog(utils.get_url_path(blog_path), blog_path)
+        prefix=os.path.join(config['site_dir'], os.path.dirname(blog_path))
         html_content, table_of_contents, meta = parser.convert_markdown(
-            input_content, site_navigation,
-            extensions=config['markdown_extensions'], strict=config['strict']
-        )
+            input_content, newblog,
+            extensions=config['markdown_extensions'],
+            strict=config['strict'],
+            prefix=prefix)
 
+        blog_meta = get_blog_meta(blog_record[blog_path])
+        blog_meta['content'] = html_content
+        topblogs.append(blog_meta)
         #get their attributes
-        context['page_titles'].append('some')
-        context['page_dates'].append('some')
-        context['page_tagss'].append([])
-        context['contents'].append('some')
+    context['topblogs'] = topblogs
 
-    #output_content = template.render(context)
-    #utils.write_file(output_content.encode('utf-8'), 'index.html')
+    output_content = template.render(context)
+    utils.write_file(output_content.encode('utf-8'), 'index.html')
 
 #XXX:fixed
 def _build_page(page, config, site_navigation, env):
     # Read the input file
     input_path = page.input_path
+    output_path = page.output_path
 
     try:
         input_content = open(input_path, 'r').read()
@@ -228,7 +237,6 @@ def _build_page(page, config, site_navigation, env):
     output_content = template.render(context)
 
     # Write the output file.
-    output_path = page.output_path
     utils.write_file(output_content.encode('utf-8'), output_path)
 
 #XXX:fixed

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>My Webpage</title>
+  </head>
+  <body>
+    <ul id="navigation">
+      {% for item in navigation %}
+              <li><a href="{{ item.href }}">{{ item.caption }}</a></li>
+	      {% endfor %}
+    </ul>
+    <div class="container">
+	    {% if toc %}
+	    <div class="col-md-3">{% include "toc.html" %}</div>
+            <div class="col-md-9" role="main">{% include "content.html" %}</div>
+    </div>
+    {% else %}
+	<div class="col-md-2"></div>
+        <div class="col-md-8" role="main">{% include "content.html" %}</div>
+	<div class="col-md-2"></div>
+    {% endif %}
+
+    <h1>My Webpage</h1>
+    {{ a_variable }}
+
+    {# a comment #}
+  </body>
+  </html>

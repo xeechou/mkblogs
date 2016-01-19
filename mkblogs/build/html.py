@@ -9,7 +9,7 @@ import logging
 compiling functions
 """
 def convert_markdown(markdown_source, page=None, extensions=(),
-        strict=False, wantmd=False):
+        strict=False, prefix=None):
     """
     Convert the Markdown source file to HTML content, and additionally
     return the parsed table of contents, and a dictionary of any metadata
@@ -21,7 +21,7 @@ def convert_markdown(markdown_source, page=None, extensions=(),
 
     # Generate the HTML from the markdown source
     builtin_extensions = ['meta', 'toc', 'tables', 'fenced_code']
-    mkblogs_extensions = [RelativePathExtension(page, strict), ]
+    mkblogs_extensions = [RelativePathExtension(page, strict, prefix), ]
     extensions = builtin_extensions + mkblogs_extensions + list(extensions)
     md = markdown.Markdown(
         extensions=extensions
@@ -36,10 +36,7 @@ def convert_markdown(markdown_source, page=None, extensions=(),
     # Post process the generated table of contents into a data structure
     table_of_contents = toc.TableOfContents(toc_html)
 
-    if wantmd:
-        return (html_content, table_of_contents, meta, md)
-    else:
-        return (html_content, table_of_contents, meta)
+    return (html_content, table_of_contents, meta)
 
 
 def get_located_path(file_path):
