@@ -171,7 +171,9 @@ class Page(Blog):
 
     @property
     def url(self):
-        return self.url_context.make_relative(self.abs_url)
+        #because pages always have abs url, so we modify the links in nav.html
+        return self.abs_url
+        #return self.url_context.make_relative(self.abs_url)
 
     @property
     def is_homepage(self):

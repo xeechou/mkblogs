@@ -39,6 +39,7 @@ def get_global_context(page, nav, config):
     extra_javascript = utils.create_media_urls(url_context=page.url_context, url_list=config['extra_javascript'])
 
     extra_css = utils.create_media_urls(url_context=page.url_context, url_list=config['extra_css'])
+    base_url = page.url_context.make_relative('/')
 
     return {
         'site_name': site_name,
@@ -54,9 +55,8 @@ def get_global_context(page, nav, config):
         'repo_url': config['repo_url'],
         'repo_name': config['repo_name'],
         'nav': nav,
-        'base_url': page.url_context.make_relative('/'), #base_url is a
-                                                        #relative_url from page to themes
-        'homepage_url': nav.homepage.url,
+        'base_url': base_url, #base_url is a relative_url from page to themes
+        'homepage_url': base_url + nav.homepage.abs_url,
 
         'extra_css': extra_css,
         'extra_javascript': extra_javascript,
