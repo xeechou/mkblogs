@@ -245,7 +245,7 @@ def build_pages(config, site_navigation):
     Builds all the pages and writes them into the build directory.
     """
     #site_navigation = nav.SiteNavigation(config['pages'])
-    loader = jinja2.FileSystemLoader(config['theme_dir'])
+    loader = jinja2.FileSystemLoader(config['templates_dir'])
     env = jinja2.Environment(loader=loader)
 
     index = site_navigation.get_page('Home')

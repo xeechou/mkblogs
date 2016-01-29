@@ -118,6 +118,11 @@ def get_url_path(path):
     path = get_html_path(path)
     url = '/' + path.replace(os.path.sep, '/')
     return url
+def has_template(d):
+    for f in d:
+        if is_html_file(f):
+            return True
+    return False
 
 def exact_page_config(config_line):
     #this is not what we wanted, Another day

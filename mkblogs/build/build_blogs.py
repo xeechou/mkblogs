@@ -94,7 +94,7 @@ class BlogsGen(object):
 
         #XXX: step 2 generate context for building blogs
         self.site_navigation = site_navigation
-        loader = jinja2.FileSystemLoader(config['theme_dir'])
+        loader = jinja2.FileSystemLoader(config['templates_dir'])
         self.env = jinja2.Environment(loader=loader)
         dummy = os.path.join(config['docs_dir'], 'dummy')
 

@@ -1,0 +1,18 @@
+<!--we sticked to bootstrap anyway-->
+<div class="container">
+	<div class="col-md-1"></div>
+	<div class="col-md-10">
+		{% for blog in topblogs -%}
+		<div class="page-header">
+			<h1>{{ blog['title'] }}</h1>
+			<p> {{ blog['date'] }}<span class="glyphicon glyphicon-tags">
+				{% for tag in blog['tags'] -%}
+				<a href="#"> {{ tag }}</a> <!--fake tag for now -->
+				{% endfor %}
+			</p>
+		</div>
+		{{ blog['content'] }}
+		{% endfor %}
+	</div>
+	<div class="col-md-1"></div>
+</div>

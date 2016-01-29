@@ -23,6 +23,8 @@ DEFAULT_CONFIG = {
     'docs_dir': 'docs',
     'site_dir': 'site',
     'theme_dir': None,
+    'template_dir' : None,
+    'templates_dir' : None,
 
     'copyright': None,
     'google_analytics': None,
@@ -149,6 +151,16 @@ def validate_config(user_config):
         theme_dir.insert(0, config['theme_dir'])
 
     config['theme_dir'] = theme_dir
+
+    #adding themplates
+    templates_dir = []
+    template_dir = config['template_dir'] or 'templates'
+    for theme in theme_dir:
+        if utils.has_template(os.listdir(theme)):
+            templates_dir.append(theme)
+        if template_dir and os.path.exists(os.path.join(theme, template_dir)):
+            templates_dir.append(os.path.join(theme, template_dir))
+    config['templates_dir'] = templates_dir
 
     if config['repo_url'] is not None and config['repo_name'] is None:
         repo_host = urlparse(config['repo_url']).netloc.lower()
