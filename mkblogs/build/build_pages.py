@@ -131,7 +131,7 @@ def build_catalog(page, config, site_navigation, env):
             f.write(add_category(key))
             for (blog_name, blog_path) in catalist[key]:
                 """hard code the blog addr to its html addr, fix this later"""
-                blog_url = os.path.join(config['site_dir'], 
+                blog_url = os.path.join(config['site_dir'],
                         utils.get_html_path(blog_path))
                 f.write(add_cate_blog(blog_name, blog_url))
         f.close()
@@ -149,6 +149,7 @@ def build_404(config, env, site_navigation):
         return
     page = nav.Page('Page Not Found', '404.html', '404.md')
     global_context = get_global_context(page, site_navigation, config)
+    global_context.update(get_page_context(page, None, None, None, config))
 
     output_content = template.render(global_context)
     utils.write_file(output_content.encode('utf-8'), '404.html')
