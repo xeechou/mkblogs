@@ -39,7 +39,7 @@
         {% endif %}
     </head>
 
-    <body>
+    <body{% if current_page and current_page.is_homepage %} class="homepage"{% endif %}>
 
         {% include "nav.html" %}
 
@@ -55,6 +55,14 @@
 		<div class="col-md-2"></div>
             {% endif %}
         </div>
+
+        <footer class="col-md-12">
+            <hr>
+            {% if copyright %}
+            <p>{{ copyright }}</p>
+            {% endif %}
+            <p>Documentation built with <a href="http://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
 
         {% if include_search %}{% include "search.html" %}{% endif %}
 
