@@ -39,7 +39,7 @@
         {% endif %}
     </head>
 
-    <body{% if current_page and current_page.is_homepage %} class="homepage"{% endif %}>
+    <body>
 
         {% include "nav.html" %}
 
@@ -48,10 +48,19 @@
 	    {% include structure %}
 	    {% elif toc %}
             	<div class="col-md-3">{% include "toc.html" %}</div>
-            	<div class="col-md-9" role="main">{% include "content.html" %}</div>
+
+            	<div class="col-md-9" role="main">
+                <div class="panel panel-default">
+                    <div class="panel-body">
+                        {% include "content.html" %}
+                </div></div></div>
 	    {% else %}
 		<div class="col-md-2"></div>
-        	<div class="col-md-8" role="main">{% include "content.html" %}</div>
+        <div class="col-md-8" role="main">
+        <div class="panel panel-default">
+            <div class="panel-body">
+                    {% include "content.html" %}
+                </div></div></div>
 		<div class="col-md-2"></div>
             {% endif %}
         </div>
