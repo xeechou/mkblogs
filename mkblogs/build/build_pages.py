@@ -193,6 +193,7 @@ def build_index(page, config, site_navigation, env):
             prefix=prefix)
 
         blog_meta = get_blog_meta(blog_record[blog_path])
+        blog_meta['url'] = os.path.join(config['site_dir'], utils.get_html_path(blog_path))
         blog_meta['content'] = html_content
         topblogs.append(blog_meta)
         #get their attributes
