@@ -155,6 +155,7 @@ class BlogsGen(object):
         context = get_global_blog_context(blog, site_navigation, config)
         context.update(BLANK_BLOG_CONTEXT)
         context.update(get_blog_context(config, html_content, toc, meta))
+        context.update({'structure' : 'blog.html'})
 
         #get what users wanted and remove want users dont wanted
         #so in general, toc is removed
@@ -192,7 +193,6 @@ def get_blog_context(config, html, toc, meta):
         date = (meta.get('date') or meta.get('Date'))[0]
     except:
         raise NameError('Error in retrieving blogs meta')
-
     date = utils.parse_date(date)
     tags = meta.get('tags') or meta.get('Tags')
     if not tags:
