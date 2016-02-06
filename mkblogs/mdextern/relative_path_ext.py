@@ -38,7 +38,7 @@ def _iter(node):
     return [node] + node.findall('.//*')
 
 
-def path_to_url(url, page, strict):
+def path_to_url(url, page, prefix, strict):
     """
     convert a path to valid url:
     1) if it is a media file, we change nothing
@@ -73,6 +73,9 @@ def path_to_url(url, page, strict):
     else:
         path = utils.get_url_path(path).lstrip('/')
 
+    if prefix:
+        path = os.path.join(prefix, path)
+
     # Convert the .md hyperlink to a relative hyperlink to the HTML page.
     url = urlunparse((scheme, netloc, path, params, query, fragment))
     return url
@@ -103,9 +106,7 @@ class RelativePathTreeprocessor(Treeprocessor):
                 continue
 
             url = element.get(key)
-            new_url = path_to_url(url, self.this_page, self.strict)
-            if self.prefix:
-                new_url = os.path.join(self.prefix, new_url)
+            new_url = path_to_url(url, self.this_page, self.prefix, self.strict)
             element.set(key, new_url)
 
         return root
