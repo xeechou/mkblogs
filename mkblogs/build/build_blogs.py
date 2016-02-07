@@ -196,7 +196,7 @@ def get_blog_context(config, html, toc, meta):
     date = utils.parse_date(date)
     tags = meta.get('tags') or meta.get('Tags')
     if not tags:
-        tags = ['TO TAGS']
+        tags = ['NO TAGS']
 
     return {
             #there is no next page and previous page for blo
